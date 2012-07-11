@@ -10,7 +10,6 @@ class CStorage(CConfigurable):
     def __init__(self):
         CConfigurable.__init__(self, '/etc/rsdn-irc-bot/storage.conf')
         self.connection = psycopg2.connect(database=self.config['database'], user=self.config['user'], password=self.config['password'], host=self.config['host'], port=self.config['port'])
-        
 
     def getNicknameId(self, nickname):
         sql = "SELECT id FROM nicknames WHERE nickname = %s"
@@ -31,7 +30,7 @@ class CStorage(CConfigurable):
         cursor.execute("INSERT INTO channels_logs (nickname_id, channel, message) VALUES (%s, %s, %s)", (nickname_id, channel, message))
         self.connection.commit()
         cursor.close()
-        
+
     def getTopOfChannel(self, channel, num):
         top = ''
         cursor = self.connection.cursor()
@@ -59,10 +58,9 @@ class CStorage(CConfigurable):
             uid = cursor.fetchone()
         cursor.close()
         return uid[0]
-        
+
     def setRsdnRowVersion(self, name, value):
         cursor = self.connection.cursor()
         cursor.execute("update rsdn_row_versions set value=%s where name=%s", (value, name))
         self.connection.commit()
         cursor.close()
-        

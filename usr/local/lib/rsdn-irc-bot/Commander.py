@@ -45,7 +45,7 @@ class CCommander(object):
     def g(self, nickname, channel, parametres):
         what = '%20'.join(parametres)
         return [[1, "https://www.google.ru/#q=%s http://yandex.ru/yandsearch?text=%s http://lmgtfy.com/?q=%s http://www.wolframalpha.com/input/?i=%s"%(what,what,what,what)]]
-        
+
     def mid(self, nickname, channel, parametres):
         (ok, mid) = self._checkInt(''.join(parametres), 1, 2147483646)
         if not ok: return [[0, mid]]
@@ -111,5 +111,3 @@ class CCommander(object):
             elif flag == 'p': source += string.punctuation
             elif flag == 's': source += ' '
         return [[1, '<%s>'%''.join(random.choice(source) for x in range(length))]]
-        
-        

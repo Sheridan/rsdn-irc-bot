@@ -79,20 +79,6 @@ class CBot(SingleServerIRCBot, CConfigurable):
                     return True
         return False
 
-        #elif cmd == "mute"  : self.commander.mute  (e.source(), channel)
-        #elif cmd == "demute": self.commander.demute(e.source(), channel)
-        #elif cmd == "op"    : self.commander.op    (e.source(), channel)
-        #elif cmd == "deop"  : self.commander.deop  (e.source(), channel)
-        #elif cmd == "g"     : self.commander.g     (nick, channel, "%20".join(command[1:]))
-        #elif cmd == "top"   : self.commander.top   (nick, channel, command)
-        #elif cmd == "mid"   : self.commander.mid   (nick, ' '.join(command[1:]))
-        #else: nick = nm_to_n(nickname)
-        #    return False
-        
-
-    #def setOperators(self, operators):
-    #    self.operators = operators
-
     def setUserMode(self, user, channel, mode):
         self.connection.send_raw("MODE %s %s %s"%(channel, mode, nm_to_n(user)))
 

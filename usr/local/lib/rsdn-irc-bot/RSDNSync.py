@@ -81,11 +81,6 @@ class CRSDNSync(Thread, CConfigurable):
                                                                                                                            unicode(message['userNick']).encode('utf8'), 
                                                                                                                            message['messageId'], message['messageId']
                                                                                                                           ))
-            #print result
-            #print client
-            #newMessages
-            #newRating
-            #newModerate
 
     def getTopic(self, mid):
         (ok, client) = self._client()
