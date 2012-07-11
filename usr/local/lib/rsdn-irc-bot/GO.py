@@ -21,3 +21,11 @@ commands =  {
 storage = Storage.CStorage()
 bot     = Bot.CBot()
 rsdn    = RSDNSync.CRSDNSync()
+
+
+def utf8(s):
+    try:
+        return unicode(s).encode('utf8')
+    except UnicodeDecodeError:
+        print 'Unicode error: ' + s
+        bot.stop()

@@ -19,25 +19,30 @@ class CBot(SingleServerIRCBot, CConfigurable):
         self.commander = Commander.CCommander()
 
     def stop(self):
+        self.sendLog('Offline')
         self.channelsListObserveTimer.stop()
         GO.rsdn.stop()
         self.disconnect()
         self.die()
 
     def channelsListObserve(self):
+        self.sendLog('Проверяю список каналов...')
         self.connection.list()
 
     def on_nicknameinuse(self, c, e):
         c.oper(self.config['auth']['nick'], self.config['auth']['oper_password'])
         c.nick('%s_%d'%(self.config['auth']['nick'],random.randint(0,100)))
-        c.send_raw("kill %s %s"%(self.config['auth']['nick'], "What the fuck!"))
+        c.send_raw('kill %s %s'%(self.config['auth']['nick'], 'What the fuck!'))
         c.nick(self.config['auth']['nick'])
 
     def on_welcome(self, c, e):
         c.oper(self.config['auth']['nick'], self.config['auth']['oper_password'])
         #while self.connection.get_nickname() != self.config['auth']['nick']: time.sleep(1)
+        self.joinChannel(self.config['channels']['notifications'], u'Все сообщения о активности на RSDN')
+        self.joinChannel(self.config['channels']['log'], u'Лог работы робота')
         GO.rsdn.start()
         self.channelsListObserveTimer.start()
+        self.sendLog('Online')
 
     def on_privmsg(self, c, e):
         pass
@@ -47,6 +52,7 @@ class CBot(SingleServerIRCBot, CConfigurable):
         for chname, chobj in self.channels.items():
             if channel == chname:
                 return
+        
         self.joinChannel(channel)
 
     def on_pubmsg(self, c, e):
@@ -80,10 +86,10 @@ class CBot(SingleServerIRCBot, CConfigurable):
         return False
 
     def setUserMode(self, user, channel, mode):
-        self.connection.send_raw("MODE %s %s %s"%(channel, mode, nm_to_n(user)))
+        self.connection.send_raw('MODE %s %s %s'%(channel, mode, nm_to_n(user)))
 
     def setChannelMode(self, channel, mode):
-        self.connection.send_raw("MODE %s %s"%(channel, mode))
+        self.connection.send_raw('MODE %s %s'%(channel, mode))
 
     def isOperator(self, nick, channel):
         for operator in self.operators['global']:
@@ -107,22 +113,29 @@ class CBot(SingleServerIRCBot, CConfigurable):
         self.connection.notice(nm_to_n(nickname), text)
 
     def sendChannelReply(self, nickname, channel, text):
-        self.connection.send_raw("PRIVMSG %s %s: %s"%(channel, nm_to_n(nickname), text))
+        self.connection.send_raw('PRIVMSG %s %s: %s'%(channel, nm_to_n(nickname), text))
 
     def sendChannelText(self, channel, text):
-        self.connection.send_raw("PRIVMSG %s %s"%(channel, text))
+        self.connection.send_raw('PRIVMSG %s %s'%(channel, text))
 
     def sendPrivate(self, nickname, text):
-        self.connection.send_raw("PRIVMSG %s %s"%(nm_to_n(nickname), text))
+        self.connection.send_raw('PRIVMSG %s %s'%(nm_to_n(nickname), text))
 
     def joinChannel(self, channelName, topic=None):
         if channelName[0] != '#':
-            channelName = str('#' + channelName)
-        if self.config['debug']['enable'] == 'true' and channelName not in self.config['debug']['channels']:
-            return
-        self.connection.send_raw("samode %s -lri"%(channelName))
-        self.connection.join(channelName)
-        self.connection.send_raw("samode %s +o %s"%(channelName, self.connection.get_nickname()))
-        if topic:
-            self.connection.topic(channelName, unicode(topic).encode('utf8'))
+            channelName = '#' + channelName
+        if self.config['debug']['enable'] == 'true' and channelName in self.config['debug']['channels'] or \
+           channelName in [self.config['channels']['notifications'], self.config['channels']['log']] or \
+           self.config['debug']['enable'] != 'true':
+            self.sendLog('Вхожу на канал %s'%GO.utf8(channelName))
+            self.connection.send_raw('samode %s -lri'%(channelName))
+            self.connection.join(channelName)
+            self.connection.send_raw('samode %s +o %s'%(channelName, self.connection.get_nickname()))
+            if topic:
+                self.connection.topic(GO.utf8(channelName), GO.utf8(topic))
 
+    def sendRsdnNotification(self, text):
+        self.sendChannelText(GO.utf8(self.config['channels']['notifications']), text)
+
+    def sendLog(self, text):
+        self.sendChannelText(GO.utf8(self.config['channels']['log']), text)

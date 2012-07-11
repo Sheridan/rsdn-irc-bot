@@ -26,9 +26,19 @@ class CRSDNSync(Thread, CConfigurable):
            return [0, err]
         return [1, client]
 
+    def getMessageUrlById(self, mid):
+        return 'http://www.rsdn.ru/forum/message/%d.aspx : mid %d'%(mid,mid)
+
+    def getMemberUrlById(self, uid):
+        return 'http://www.rsdn.ru/Users/%d.aspx : uid %d'%(uid,uid)
+        
+    def getForumUrlById(self, fid):
+        return 'http://rsdn.ru/forum/%s/ : fid %d'%(self.forums[fid]['sname'],fid)
+
     def syncForumsList(self):
         (ok, client) = self._client()
         if ok:
+            GO.bot.sendLog("RSDN. Запуск получения списка форумов")
             mForumRequest = client.factory.create('ForumRequest')
             mForumRequest.userName = self.config['auth']['user']
             mForumRequest.password = self.config['auth']['password']
@@ -54,6 +64,7 @@ class CRSDNSync(Thread, CConfigurable):
         if len(self.forums) == 0: return
         (ok, client) = self._client()
         if ok:
+            GO.bot.sendLog("RSDN. Запуск проверки новых сообщений на форумах")
             mChangeRequest = client.factory.create('ChangeRequest')
             mChangeRequest.userName = self.config['auth']['user']
             mChangeRequest.password = self.config['auth']['password']
@@ -74,17 +85,24 @@ class CRSDNSync(Thread, CConfigurable):
             GO.storage.setRsdnRowVersion('moderateRowVersion', result['lastModerateRowVersion'])
             if len(result['newMessages']) > 0:
                 for message in result['newMessages'][0]:
+                    text = '`%s` ( %s ). Автор: %s ( %s )'%(
+                                                               GO.utf8(message['subject']), 
+                                                               self.getMessageUrlById(message['messageId']), 
+                                                               GO.utf8(message['userNick']),
+                                                               self.getMemberUrlById(message['userId'])
+                                                             )
+                    GO.bot.sendRsdnNotification('В форуме `%s` ( %s ) новое сообщение: %s'%(
+                                                                                          GO.utf8(self.forums[message['forumId']]['name']),
+                                                                                          GO.utf8(self.getForumUrlById(message['forumId'])),
+                                                                                          text
+                                                                                         ))
                     if message['parentId'] == 0:
-                        GO.bot.sendChannelText('#'+unicode(self.forums[message['forumId']]['name']).encode('utf8'), 
-                                                 'Новый топик `%s` от `%s` ( http://www.rsdn.ru/forum/message/%d.aspx )(id: %d)'%(
-                                                                                                                           unicode(message['subject']).encode('utf8'), 
-                                                                                                                           unicode(message['userNick']).encode('utf8'), 
-                                                                                                                           message['messageId'], message['messageId']
-                                                                                                                          ))
+                        GO.bot.sendChannelText('#'+GO.utf8(self.forums[message['forumId']]['sname']), 'Новый топик %s'%text)
 
     def getTopic(self, mid):
         (ok, client) = self._client()
         if ok:
+            GO.bot.sendLog("RSDN. Запуск получения топика")
             mTopicRequest = client.factory.create('TopicRequest')
             mTopicRequest.userName = self.config['auth']['user']
             mTopicRequest.password = self.config['auth']['password']
@@ -97,20 +115,20 @@ class CRSDNSync(Thread, CConfigurable):
                 message['exists'] = True
                 for m in result['Messages'][0]:
                     msgcount += 1
-                    nick = unicode(m['userNick']).encode('utf8')
+                    nick = GO.utf8(m['userNick'])
                     message['members'][nick] = 1 if nick not in message['members'] else message['members'][nick] + 1
                     if m['messageId'] == mid:
                         message['self'] = {
-                                            'subject': unicode(m['subject']).encode('utf8'), 
+                                            'subject': GO.utf8(m['subject']), 
                                             'user'   : nick,
-                                            'message': unicode(m['message']).encode('utf8'), 
+                                            'message': GO.utf8(m['message']), 
                                             'date'   : m['messageDate'],
                                             'mid'    : m['messageId'], 
                                             'closed' : m['closed']
                                           }
                     if m['parentId'] == 0:
                         message['top'] = {
-                                            'subject': unicode(m['subject']).encode('utf8'), 
+                                            'subject': GO.utf8(m['subject']), 
                                             'user'   : nick,
                                             'date'   : m['messageDate'],
                                             'mid'    : m['messageId'], 
