@@ -89,7 +89,7 @@ class CRSDNSync(Thread, CConfigurable):
                                                GO.utf8(message['subject']), 
                                                GO.utf8(message['userNick']),
                                              )
-                    urls = '|'.join([
+                    urls = ' | '.join([
                                       '#'+GO.utf8(self.forums[message['forumId']]['sname']),
                                       GO.utf8(self.getForumUrlById(message['forumId'])),
                                       self.getMessageUrlById(message['messageId']), 
