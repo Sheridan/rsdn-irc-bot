@@ -96,6 +96,7 @@ class CCommander(object):
 
     def help(self, nickname, channel, parametres):
         result = []
+        result.append([1, 'RSDNServ, робот интеграции RSDN в IRC. https://github.com/Sheridan/rsdn-irc-bot'])
         result.append([1, 'Каждая комманда предваряется префиксом. ! - ответы бота видны для всех на канале, @ - ответы бота отправляются в приват, # - ответы бота отправляются нотайсами на канал'])
         for cmd in GO.commands.keys():
           result.append([1, '%s: %s. Возможные префиксы: %s. Доступна %s. Пример: %s'%
