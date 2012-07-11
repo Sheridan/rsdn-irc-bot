@@ -64,7 +64,7 @@ class CBot(SingleServerIRCBot, CConfigurable):
     def publicCommand(self, nickname, channel, text):
         prefix = text[0]
         if prefix in '!@#':
-            command = text[1:].strip().split(" ")
+            command = re.split('\s+', text[1:].strip())
             cmd = command[0]
             parametres = command[1:]
             if cmd in GO.commands.keys() and prefix in GO.commands[cmd]['pfx']:
