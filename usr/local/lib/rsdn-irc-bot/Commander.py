@@ -51,7 +51,8 @@ class CCommander(object):
         (ok, kw) = self._checkString(' '.join(parametres))
         if not ok: return [[0, kw]]
         kw = '%20'.join(kw.split(' '))
-        engines = ['https://www.google.ru/#q=%s',
+        engines = ['http://img.meta.ua/rsdnsearch/?q=%s'
+                   'https://www.google.ru/#q=%s',
                    'http://yandex.ru/yandsearch?text=%s',
                    'http://lmgtfy.com/?q=%s',
                    'http://www.wolframalpha.com/input/?i=%s']
@@ -63,17 +64,15 @@ class CCommander(object):
         data = GO.rsdn.getTopic(mid)
         if data['exists']:
             result = []
-            result.append([1, 'Пост находится в топике `%s` ( http://www.rsdn.ru/forum/message/%d.aspx )(id: %d) за дату %s, от пользователя %s. Ответы %s.'%(
+            result.append([1, 'Пост находится в топике `%s` ( %s ) за дату %s, от пользователя %s. Ответы %s.'%(
                                                                                         data['top']['subject'], 
-                                                                                        data['top']['mid'],
-                                                                                        data['top']['mid'],
+                                                                                        GO.rsdn.getMessageUrlById(data['top']['mid']),
                                                                                         data['top']['date'],
                                                                                         data['top']['user'],
                                                                                         'запрещены' if data['top']['closed'] else 'разрешены')])
-            result.append([1, 'Пост `%s` ( http://www.rsdn.ru/forum/message/%d.aspx )(id: %d) написан %s пользователем %s. Ответы %s.'%(
+            result.append([1, 'Пост `%s` ( %s ) написан %s пользователем %s. Ответы %s.'%(
                                                                                         data['self']['subject'], 
-                                                                                        data['self']['mid'],
-                                                                                        data['self']['mid'],
+                                                                                        GO.rsdn.getMessageUrlById(data['self']['mid']),
                                                                                         data['self']['date'],
                                                                                         data['self']['user'],
                                                                                         'запрещены' if data['self']['closed'] else 'разрешены')])

@@ -58,7 +58,7 @@ class CRSDNSync(Thread, CConfigurable):
                                     }
             for fid in self.forums.keys():
                 forum = self.forums[fid]
-                GO.bot.joinChannel(forum['sname'], '%s :: %s ( http://rsdn.ru/forum/%s/ )'%(forum['gname'], forum['name'], forum['sname']))
+                GO.bot.joinChannel(forum['sname'], '%s :: %s ( %s )'%(forum['gname'], forum['name'], self.getForumUrlById(fid)))
 
     def syncForumsData(self):
         if len(self.forums) == 0: return
