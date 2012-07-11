@@ -85,19 +85,24 @@ class CRSDNSync(Thread, CConfigurable):
             GO.storage.setRsdnRowVersion('moderateRowVersion', result['lastModerateRowVersion'])
             if len(result['newMessages']) > 0:
                 for message in result['newMessages'][0]:
-                    text = '`%s` ( %s ). Автор: %s ( %s )'%(
-                                                               GO.utf8(message['subject']), 
-                                                               self.getMessageUrlById(message['messageId']), 
-                                                               GO.utf8(message['userNick']),
-                                                               self.getMemberUrlById(message['userId'])
-                                                             )
-                    GO.bot.sendRsdnNotification('В форуме `%s` ( %s ) новое сообщение: %s'%(
-                                                                                          GO.utf8(self.forums[message['forumId']]['name']),
-                                                                                          GO.utf8(self.getForumUrlById(message['forumId'])),
-                                                                                          text
-                                                                                         ))
+                    text = '`%s`. Автор: %s'%(
+                                               GO.utf8(message['subject']), 
+                                               GO.utf8(message['userNick']),
+                                             )
+                    urls = 'Форум %s. Сообщение %s. Автор: %s.'%(
+                                                                  GO.utf8(self.getForumUrlById(message['forumId'])),
+                                                                  self.getMessageUrlById(message['messageId']), 
+                                                                  self.getMemberUrlById(message['userId'])
+                                                                )
+                    GO.bot.sendRsdnNotification('В форуме `%s` новое сообщение: %s'%(
+                                                                                      GO.utf8(self.forums[message['forumId']]['name']),
+                                                                                      text
+                                                                                     ))
+                    GO.bot.sendRsdnNotification(urls)
                     if message['parentId'] == 0:
-                        GO.bot.sendChannelText('#'+GO.utf8(self.forums[message['forumId']]['sname']), 'Новый топик %s'%text)
+                        channel = '#'+GO.utf8(self.forums[message['forumId']]['sname'])
+                        GO.bot.sendChannelText(channel, 'Новый топик %s'%text)
+                        GO.bot.sendChannelText(channel, urls)
 
     def getTopic(self, mid):
         (ok, client) = self._client()
