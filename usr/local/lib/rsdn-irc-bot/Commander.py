@@ -26,6 +26,11 @@ class CCommander(object):
                 return [0, 'Неизвестный флаг `%s`, почитайте #help'%flag]
         return [1, val]
 
+    def _checkString(self, val):
+        if val == None or val == '':
+            return [0, "Отсутствует параметр, почитайте #help"]
+        return [1, val]
+
     def mute(self, nickname, channel, parametres):
         GO.bot.setChannelMode(channel, '+m')
         return []
@@ -43,8 +48,14 @@ class CCommander(object):
         return []
 
     def g(self, nickname, channel, parametres):
-        what = '%20'.join(parametres)
-        return [[1, "https://www.google.ru/#q=%s http://yandex.ru/yandsearch?text=%s http://lmgtfy.com/?q=%s http://www.wolframalpha.com/input/?i=%s"%(what,what,what,what)]]
+        (ok, kw) = self._checkString(' '.join(parametres))
+        if not ok: return [[0, kw]]
+        kw = '%20'.join(kw.split(' '))
+        engines = ['https://www.google.ru/#q=%s',
+                   'http://yandex.ru/yandsearch?text=%s',
+                   'http://lmgtfy.com/?q=%s',
+                   'http://www.wolframalpha.com/input/?i=%s']
+        return [[1, ' '.join([engine%kw for engine in engines])]]
 
     def mid(self, nickname, channel, parametres):
         (ok, mid) = self._checkInt(''.join(parametres), 1, 2147483646)
