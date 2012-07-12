@@ -61,7 +61,7 @@ class CBot(SingleServerIRCBot, CConfigurable):
         nickname = e.source()
         channel  = e.target()
         text     = ' '.join(e.arguments())
-        GO.storage.logChannelMessage(nm_to_n(nickname), channel, text, not self.publicCommand(nickname, channel, text))
+        GO.storage.logChannelMessage(nm_to_n(nickname), channel, text, self.publicCommand(nickname, channel, text))
 
     def on_join(self, c, e):
         channel = e.target()
