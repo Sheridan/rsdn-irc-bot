@@ -147,6 +147,14 @@ class CStorage(CConfigurable):
     
     def isMessageInDb(self, mid):
         return self.isIdInDb(mid, 'id', 'rsdn_messages')
+        
+    def getUserIdByName(self, userName):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT id FROM rsdn_users WHERE username = %s", (userName,))
+        res = cursor.fetchone()
+        cursor.close()
+        return None if res == None else res
+        
 
     def getTodayEvents(self, channel):
         result = dict()
@@ -162,8 +170,33 @@ class CStorage(CConfigurable):
         else:
             result['f_msgs'] = 'Неприменимо'
         cursor.close()
+        return result
+
+    def getUserStats(self, uid):
+        result = dict()
+        cursor = self.connection.cursor()
+        cursor.execute("select count(id) from rsdn_messages where userid=%s", (uid, ))
+        result['f_msgs'] = cursor.fetchone()[0]
+        cursor.execute("""
+        select rsdn_users.username, count(rsdn_messages.id) 
+        from rsdn_messages
+        left join rsdn_users on rsdn_users.id = rsdn_messages.userid
+        where rsdn_messages.parentid in (select id from rsdn_messages where userid=%s)
+        group by rsdn_users.username
+        order by 2 desc
+        limit 10
+        """, (uid, ))
+        result['t10_o2u'] = ', '.join(['%s:%s'%(mber,cnt) for mber, cnt in cursor.fetchall()])
+        cursor.execute("""
+        select rsdn_users.username, count(rsdn_messages.id)
+        from rsdn_messages
+        left join rsdn_users on rsdn_users.id = rsdn_messages.userid
+        where rsdn_messages.id in (select parentid from rsdn_messages where userid=%s)
+        group by rsdn_users.username
+        order by 2 desc
+        limit 10
+        """, (uid, ))
+        result['t10_u2o'] = ', '.join(['%s:%s'%(mber,cnt) for mber, cnt in cursor.fetchall()])
+        cursor.close()
         return result;
-
-
-
 

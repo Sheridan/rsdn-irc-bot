@@ -65,7 +65,7 @@ class CBot(SingleServerIRCBot, CConfigurable):
 
     def on_join(self, c, e):
         channel = e.target()
-        c.send_raw('sajoin %s %s'%(nm_to_n(e.source()), GO.utf8(self.config['channels']['notifications'])))
+        #c.send_raw('sajoin %s %s'%(nm_to_n(e.source()), GO.utf8(self.config['channels']['notifications'])))
         if self.isOperator(e.source(), channel):
             self.setUserMode(e.source(), channel, '+o')
 

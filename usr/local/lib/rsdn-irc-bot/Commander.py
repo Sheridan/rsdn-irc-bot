@@ -85,6 +85,31 @@ class CCommander(object):
             return result
         return [[0, 'Сообщение не существует или ошибка сервера']]
 
+    def uid(self, nickname, channel, parametres):
+        (ok, uid) = self._checkInt(''.join(parametres), 1, 2147483646)
+        if not ok: 
+            (ok, uid) = self._checkString(''.join(parametres))
+            if not ok: return [[0, uid]]
+            uid = GO.storage.getUserIdByName(uid)
+            if uid == None: return [[0, 'Не могу найти у себя этого пользователя']]
+        data = GO.rsdn.getUser(uid)
+        if data != None:
+            dbdata = GO.storage.getUserStats(uid)
+            result = []
+            result.append([1, 'Имя: %s, ник: %s, реальное имя: %s. Город: %s. Специализация: %s. Web: %s. '%(
+                                                                                        GO.utf8(data['userName']), 
+                                                                                        GO.utf8(data['userNick']),
+                                                                                        GO.utf8(data['realName']),
+                                                                                        GO.utf8(data['whereFrom']),
+                                                                                        GO.utf8(data['specialization']),
+                                                                                        GO.utf8(data['homePage'])
+                                                                                                             )])
+            result.append([1, 'Сообщений (в БД): %s'%(dbdata['f_msgs'])])
+            result.append([1, 'top10 отвечающих пользователю: %s'%dbdata['t10_o2u']])
+            result.append([1, 'top10 ответов пользователям: %s'%dbdata['t10_u2o']])
+            return result
+        return [[0, 'Пользователя не существует или ошибка сервера']]
+
     def top(self, nickname, channel, parametres):
         (ok, num) = self._checkInt(''.join(parametres), 2, 30)
         if not ok: return [[0, num]]

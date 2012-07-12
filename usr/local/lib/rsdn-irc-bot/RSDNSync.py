@@ -188,6 +188,14 @@ class CRSDNSync(Thread, CConfigurable):
                 for user in users['users'][0]:
                     GO.storage.updateRsdnUsers(user)
 
+    def getUser(self, uid):
+        data = self.loadUsersByIds([uid])
+        if data != None and list(data['users']):
+            user = data['users'][0][0]
+            GO.storage.updateRsdnUsers(user)
+            return user
+        return None
+
     def getTopic(self, mid):
         (ok, client) = self._client()
         if ok:
