@@ -44,23 +44,24 @@ class CBot(SingleServerIRCBot, CConfigurable):
         self.channelsListObserveTimer.start()
         self.sendLog('Online')
 
-    def on_privmsg(self, c, e):
-        pass
-
     def on_list(self, c, e):
         channel = e.arguments()[0]
         for chname, chobj in self.channels.items():
             if channel == chname:
                 return
-        
         self.joinChannel(channel)
+
+    def on_privmsg(self, c, e):
+        nickname = e.source()
+        text     = ' '.join(e.arguments())
+        print (nickname, text)
+        pass
 
     def on_pubmsg(self, c, e):
         nickname = e.source()
         channel  = e.target()
         text     = ' '.join(e.arguments())
-        if not self.publicCommand(nickname, channel, text):
-          GO.storage.logChannelMessage(nm_to_n(nickname), channel, text)
+        GO.storage.logChannelMessage(nm_to_n(nickname), channel, text, not self.publicCommand(nickname, channel, text))
 
     def on_join(self, c, e):
         channel = e.target()
@@ -74,8 +75,8 @@ class CBot(SingleServerIRCBot, CConfigurable):
             command = re.split('\s+', text[1:].strip())
             cmd = command[0]
             parametres = command[1:]
-            if cmd in GO.commands.keys() and prefix in GO.commands[cmd]['pfx']:
-                if not GO.commands[cmd]['adm'] or GO.commands[cmd]['adm'] and self.isOperator(nickname, channel):
+            if cmd in GO.public_commands.keys() and prefix in GO.public_commands[cmd]['pfx']:
+                if not GO.public_commands[cmd]['adm'] or GO.public_commands[cmd]['adm'] and self.isOperator(nickname, channel):
                     result = getattr(self.commander, cmd)(nickname, channel, parametres)
                     #print result
                     for ok, text in result:

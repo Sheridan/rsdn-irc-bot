@@ -16,6 +16,8 @@ class CRSDNSync(Thread, CConfigurable):
         self.timerDataSync = Timer.CTimer(int(self.config['timers']['sync_data']), self.syncForumsData)
         self.forumsRowVersion = 0
         self.forums = dict()
+        self.missedMessages = []
+        self.missedMembers = []
 
     def _client(self):
         client = Client("http://www.rsdn.ru/ws/janusAT.asmx?WSDL")
@@ -39,13 +41,12 @@ class CRSDNSync(Thread, CConfigurable):
         (ok, client) = self._client()
         if ok:
             GO.bot.sendLog("RSDN. Запуск получения списка форумов")
-            mForumRequest = client.factory.create('ForumRequest')
-            mForumRequest.userName = self.config['auth']['user']
-            mForumRequest.password = self.config['auth']['password']
-            mForumRequest.forumsRowVersion = self.forumsRowVersion
-            result = client.service.GetForumList(mForumRequest)
+            request = client.factory.create('ForumRequest')
+            request.userName = self.config['auth']['user']
+            request.password = self.config['auth']['password']
+            request.forumsRowVersion = self.forumsRowVersion
+            result = client.service.GetForumList(request)
             groups = dict()
-            #print result
             for fgroup in result['groupList'][0]:
                 groups[fgroup['forumGroupId']] = fgroup['forumGroupName']
             for forum in result['forumList'][0]:
@@ -60,31 +61,96 @@ class CRSDNSync(Thread, CConfigurable):
                 forum = self.forums[fid]
                 GO.bot.joinChannel(forum['sname'], '%s :: %s ( %s )'%(forum['gname'], forum['name'], self.getForumUrlById(fid)))
 
-    def syncForumsData(self):
+    def getNewData(self):
         if len(self.forums) == 0: return
         (ok, client) = self._client()
         if ok:
             GO.bot.sendLog("RSDN. Запуск проверки новых сообщений на форумах")
-            mChangeRequest = client.factory.create('ChangeRequest')
-            mChangeRequest.userName = self.config['auth']['user']
-            mChangeRequest.password = self.config['auth']['password']
-            mChangeRequest.ratingRowVersion   = GO.storage.getRsdnRowVersion('ratingRowVersion')
-            mChangeRequest.messageRowVersion  = GO.storage.getRsdnRowVersion('messageRowVersion')
-            mChangeRequest.moderateRowVersion = GO.storage.getRsdnRowVersion('moderateRowVersion')
-            mChangeRequest.maxOutput = int(self.config['limits']['max_sync_output'])
+            request = client.factory.create('ChangeRequest')
+            request.userName = self.config['auth']['user']
+            request.password = self.config['auth']['password']
+            request.maxOutput = int(self.config['limits']['max_sync_output'])
             for fid in self.forums.keys():
                 forum = self.forums[fid]
                 mRequestForumInfo = client.factory.create('RequestForumInfo')
                 mRequestForumInfo.forumId = forum['fid']
-                mRequestForumInfo.isFirstRequest = mChangeRequest.messageRowVersion == ''
-                mChangeRequest.subscribedForums.RequestForumInfo.append(mRequestForumInfo)
-            result = client.service.GetNewData(mChangeRequest)
-            #print result
-            GO.storage.setRsdnRowVersion('ratingRowVersion'  , result['lastRatingRowVersion']  )
-            GO.storage.setRsdnRowVersion('messageRowVersion' , result['lastForumRowVersion']   )
-            GO.storage.setRsdnRowVersion('moderateRowVersion', result['lastModerateRowVersion'])
-            if len(result['newMessages']) > 0:
-                for message in result['newMessages'][0]:
+                mRequestForumInfo.isFirstRequest = request.messageRowVersion == ''
+                request.subscribedForums.RequestForumInfo.append(mRequestForumInfo)
+            done = False
+            result = []
+            while not done:
+                request.ratingRowVersion   = GO.storage.getRsdnRowVersion('ratingRowVersion')
+                request.messageRowVersion  = GO.storage.getRsdnRowVersion('messageRowVersion')
+                request.moderateRowVersion = GO.storage.getRsdnRowVersion('moderateRowVersion')
+                #print request
+                if len(self.missedMessages):
+                    for mid in self.missedMessages:
+                        request.breakMsgIds.int.append(mid)
+                    self.missedMessages = []
+                answer = client.service.GetNewData(request)
+                #print answer
+                done = answer['lastForumRowVersion'] == GO.storage.getRsdnRowVersion('messageRowVersion')
+                if not done:
+                    GO.storage.setRsdnRowVersion('ratingRowVersion'  , answer['lastRatingRowVersion']  )
+                    GO.storage.setRsdnRowVersion('messageRowVersion' , answer['lastForumRowVersion']   )
+                    GO.storage.setRsdnRowVersion('moderateRowVersion', answer['lastModerateRowVersion'])
+                    result.append(answer)
+                    self.mineMissedInMessages(answer['newMessages'][0])
+            return result
+        return None
+
+    def getNewUsers(self):
+        if len(self.forums) == 0: return
+        (ok, client) = self._client()
+        if ok:
+            GO.bot.sendLog("RSDN. Запуск проверки новых пользователей")
+            request = client.factory.create('UserRequest')
+            request.userName = self.config['auth']['user']
+            request.password = self.config['auth']['password']
+            request.maxOutput = int(self.config['limits']['max_sync_output'])
+            done = False
+            result = []
+            while not done:
+                request.lastRowVersion = GO.storage.getRsdnRowVersion('usersRowVersion')
+                #print request
+                answer = client.service.GetNewUsers(request)
+                #print answer
+                done = answer['lastRowVersion'] == GO.storage.getRsdnRowVersion('usersRowVersion')
+                GO.storage.setRsdnRowVersion('usersRowVersion', answer['lastRowVersion'])
+                if not done:
+                    result.append(answer)
+
+            return result
+        return None
+
+    def loadUsersByIds(self, ids):
+        if len(self.forums) == 0: return
+        (ok, client) = self._client()
+        if ok:
+            GO.bot.sendLog("RSDN. Запуск загрузки пользователей по id")
+            request = client.factory.create('UserByIdsRequest')
+            request.userName = self.config['auth']['user']
+            request.password = self.config['auth']['password']
+            for uid in ids:
+                request.userIds.int.append(uid)
+            answer = client.service.GetUserByIds(request)
+            return answer
+        return None
+
+    def mineMissedInMessages(self, messages):
+        for message in messages:
+            for s in ['parentId', 'topicId']:
+                if not GO.storage.isMessageInDb(message[s]) and message[s] not in self.missedMessages:
+                    self.missedMessages.append(message[s])
+            if not GO.storage.isUserInDb(message['userId']) and message['userId'] not in self.missedMembers:
+                self.missedMembers.append(message['userId'])
+
+    def syncForumsData(self):
+        newData = self.getNewData()
+        if newData != None:
+            for newDataBit in newData:
+                for message in newDataBit['newMessages'][0]:
+                    GO.storage.updateRsdnMessages(message)
                     text = '`%s`. Автор: %s'%(
                                                GO.utf8(message['subject']), 
                                                GO.utf8(message['userNick']),
@@ -104,22 +170,41 @@ class CRSDNSync(Thread, CConfigurable):
                         channel = '#'+GO.utf8(self.forums[message['forumId']]['sname'])
                         GO.bot.sendChannelText(channel, 'Новый топик %s'%text)
                         GO.bot.sendChannelText(channel, urls)
+        newUsers = self.getNewUsers()
+        if newUsers != None:
+            for newUsersBit in newUsers:
+                for user in newUsersBit['users'][0]:
+                    GO.storage.updateRsdnUsers(user)
+                    GO.bot.sendRsdnNotification('Новый пользователь `%s`, `%s`, `%s`: %s'%(
+                                                                                GO.utf8(user['userName']),
+                                                                                GO.utf8(user['userNick']),
+                                                                                GO.utf8(user['realName']),
+                                                                                self.getMemberUrlById(user['userId'])
+                                                                              ))
+        if len(self.missedMembers):
+            users = self.loadUsersByIds(self.missedMembers)
+            self.missedMembers = []
+            if users:
+                for user in users['users'][0]:
+                    GO.storage.updateRsdnUsers(user)
 
     def getTopic(self, mid):
         (ok, client) = self._client()
         if ok:
             GO.bot.sendLog("RSDN. Запуск получения топика")
-            mTopicRequest = client.factory.create('TopicRequest')
-            mTopicRequest.userName = self.config['auth']['user']
-            mTopicRequest.password = self.config['auth']['password']
-            mTopicRequest.messageIds.int.append(mid)
-            result = client.service.GetTopicByMessage(mTopicRequest)
+            request = client.factory.create('TopicRequest')
+            request.userName = self.config['auth']['user']
+            request.password = self.config['auth']['password']
+            request.messageIds.int.append(mid)
+            result = client.service.GetTopicByMessage(request)
             if len(result['Messages']):
+                self.mineMissedInMessages(result['Messages'][0])
                 msgcount = 0
                 message = dict()
                 message['members'] = dict()
                 message['exists'] = True
                 for m in result['Messages'][0]:
+                    GO.storage.updateRsdnMessages(m)
                     msgcount += 1
                     nick = GO.utf8(m['userNick'])
                     message['members'][nick] = 1 if nick not in message['members'] else message['members'][nick] + 1

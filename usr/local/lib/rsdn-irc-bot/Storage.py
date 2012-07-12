@@ -24,10 +24,11 @@ class CStorage(CConfigurable):
         cursor.close()
         return uid[0]
 
-    def logChannelMessage(self, nickname, channel, message):
+    def logChannelMessage(self, nickname, channel, message, is_bot_command):
         cursor = self.connection.cursor()
         nickname_id = self.getNicknameId(nickname)
-        cursor.execute("INSERT INTO channels_logs (nickname_id, channel, message) VALUES (%s, %s, %s)", (nickname_id, channel, message))
+        cursor.execute("INSERT INTO channels_logs (nickname_id, channel, message, is_bot_command) VALUES (%s, %s, %s, %s)", (nickname_id, channel, message, is_bot_command))
+        cursor.execute("update nicknames set last_seen = %s", (datetime.datetime.now(),))
         self.connection.commit()
         cursor.close()
 
@@ -64,3 +65,91 @@ class CStorage(CConfigurable):
         cursor.execute("update rsdn_row_versions set value=%s where name=%s", (value, name))
         self.connection.commit()
         cursor.close()
+
+    def updateRsdnMessages(self, soap_message_info):
+        sql = ''
+        if not self.isMessageInDb(soap_message_info['messageId']):
+            GO.bot.sendLog("RSDN DB. Новое сообщение")
+            sql = """
+            INSERT INTO rsdn_messages(
+                topicid, parentid, userid, forumid, subject, messagename, 
+                message, articleid, messagedate, updatedate, userrole, usertitle, 
+                lastmoderated, closed, id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+            """
+        else:
+            sql = """
+            UPDATE rsdn_messages
+            SET topicid=%s, parentid=%s, userid=%s, forumid=%s, subject=%s, 
+                messagename=%s, message=%s, articleid=%s, messagedate=%s, updatedate=%s, 
+                userrole=%s, usertitle=%s, lastmoderated=%s, closed=%s
+            WHERE id=%s;
+            """
+        cursor = self.connection.cursor()
+        cursor.execute(sql, (
+                              soap_message_info['topicId'],
+                              soap_message_info['parentId'],
+                              soap_message_info['userId'],
+                              soap_message_info['forumId'],
+                              soap_message_info['subject'],
+                              soap_message_info['messageName'],
+                              soap_message_info['message'],
+                              soap_message_info['articleId'],
+                              soap_message_info['messageDate'],
+                              soap_message_info['updateDate'],
+                              soap_message_info['userRole'],
+                              soap_message_info['userTitle'],
+                              soap_message_info['lastModerated'],
+                              soap_message_info['closed'],
+                              soap_message_info['messageId']
+                          ))
+        self.connection.commit()
+        cursor.close()
+
+    def updateRsdnUsers(self, soap_user_info):
+        sql = ''
+        if not self.isUserInDb(soap_user_info['userId']):
+            GO.bot.sendLog("RSDN DB. Новый пользователь")
+            sql = """
+            INSERT INTO rsdn_users(usernick, username, realname, homepage, wherefrom, origin, userclass, specialization, id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
+            """
+        else:
+            sql = """
+            UPDATE rsdn_users
+            SET usernick=%s, username=%s, realname=%s, homepage=%s, wherefrom=%s, origin=%s, userclass=%s, specialization=%s
+            WHERE id=%s;
+            """
+        cursor = self.connection.cursor()
+        cursor.execute(sql, (
+                              soap_user_info['userNick'],
+                              soap_user_info['userName'],
+                              soap_user_info['realName'],
+                              soap_user_info['homePage'],
+                              soap_user_info['whereFrom'],
+                              soap_user_info['origin'],
+                              soap_user_info['userClass'],
+                              soap_user_info['specialization'],
+                              soap_user_info['userId']
+                          ))
+        self.connection.commit()
+        cursor.close()
+
+    def isIdInDb(self, iid, iid_field_name, table):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT %s FROM %s WHERE %s = %s"%(iid_field_name, table, iid_field_name, '%s'), (iid,))
+        res = cursor.fetchone()
+        cursor.close()
+        return res != None
+
+    def isUserInDb(self, uid):
+        return self.isIdInDb(uid, 'id', 'rsdn_users') if uid else True
+    
+    def isMessageInDb(self, mid):
+        return self.isIdInDb(mid, 'id', 'rsdn_messages')
+
+
+
+
+
+
