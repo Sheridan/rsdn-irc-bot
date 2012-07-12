@@ -51,7 +51,7 @@ class CCommander(object):
         (ok, kw) = self._checkString(' '.join(parametres))
         if not ok: return [[0, kw]]
         kw = '%20'.join(kw.split(' '))
-        engines = ['http://img.meta.ua/rsdnsearch/?q=%s'
+        engines = ['http://img.meta.ua/rsdnsearch/?q=%s',
                    'https://www.google.ru/#q=%s',
                    'http://yandex.ru/yandsearch?text=%s',
                    'http://lmgtfy.com/?q=%s',
