@@ -123,3 +123,7 @@ class CCommander(object):
             elif flag == 'p': source += string.punctuation
             elif flag == 's': source += ' '
         return [[1, '<%s>'%''.join(random.choice(source) for x in range(length))]]
+
+    def today(self, nickname, channel, parametres):
+        data = GO.storage.getTodayEvents(channel)
+        return [[1, 'Сообщений на канале: %s, обращений к роботу: %s, сообщений на форуме канала: %s'%(data['ch_msgs'], data['ch_bot'], data['f_msgs'])]]

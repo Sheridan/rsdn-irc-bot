@@ -15,7 +15,8 @@ public_commands = {
         "top"   : { 'pfx': '!@#', 'adm': False, 'hlp': 'Вывести статистику активных пользователей канала', 'epl': '!top <число>' },
         "mid"   : { 'pfx': '!@#', 'adm': False, 'hlp': 'Вывести информацию о сообщении форума', 'epl': '!mid <id сообщения форума>' },
         "pwgen" : { 'pfx': '!@#', 'adm': False, 'hlp': 'Сгенерировать пароль. Параметры - флаги и длинна. Флаги: `a`-lowercase alpha, `A`-uppercase aplpha, `d`- digits, `p`-пунктуация, `s`-пробел. Пароль выводится внутри <> скобок.', 'epl': '!pwgen <флаги> <длинна>' },
-        "help"  : { 'pfx': '!@#', 'adm': False, 'hlp': 'Помощь по коммандам бота', 'epl': '!help' }
+        "help"  : { 'pfx': '!@#', 'adm': False, 'hlp': 'Помощь по командам бота', 'epl': '!help' },
+        "today" : { 'pfx': '!@#', 'adm': False, 'hlp': 'Дневная статистика', 'epl': '!today' }
                   }
 prvate_commands = {
         "register": { 'adm': False , 'hlp': 'Зарегестрировать свой ник', 'epl': 'register <nickname> <rsdn nickname> <rsdn password>' },

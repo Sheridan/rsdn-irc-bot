@@ -231,6 +231,12 @@ class CRSDNSync(Thread, CConfigurable):
                 return {'exists': False}
         return {'exists': False}
 
+    def getForumId(self, short_name):
+        for fid in self.forums.keys():
+            if self.forums[fid]['sname'] == short_name:
+                return fid
+        return None
+
     def stop(self):
         self.terminate = True
 

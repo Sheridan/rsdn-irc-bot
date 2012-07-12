@@ -148,7 +148,21 @@ class CStorage(CConfigurable):
     def isMessageInDb(self, mid):
         return self.isIdInDb(mid, 'id', 'rsdn_messages')
 
-
+    def getTodayEvents(self, channel):
+        result = dict()
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT count(id) FROM channels_logs WHERE date(date_and_time) = date(now()) and is_bot_command='false' and channel=%s", (channel, ))
+        result['ch_msgs'] = cursor.fetchone()[0]
+        cursor.execute("SELECT count(id) FROM channels_logs WHERE date(date_and_time) = date(now()) and is_bot_command='true' and channel=%s", (channel, ))
+        result['ch_bot'] = cursor.fetchone()[0]
+        fid = GO.rsdn.getForumId(channel[1:].lower())
+        if fid:
+            cursor.execute("SELECT count(id) FROM rsdn_messages WHERE date(messagedate) = date(now()) and forumid=%s", (fid, ))
+            result['f_msgs'] = cursor.fetchone()[0]
+        else:
+            result['f_msgs'] = 'Неприменимо'
+        cursor.close()
+        return result;
 
 
 
