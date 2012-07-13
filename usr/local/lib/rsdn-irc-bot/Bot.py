@@ -136,6 +136,10 @@ class CBot(SingleServerIRCBot, CConfigurable):
             if topic:
                 self.connection.topic(GO.utf8(channelName), GO.utf8(topic))
 
+    def sendChannelNotification(self, channel, text):
+        if self.config['debug']['enable'] != 'true':
+            self.sendChannelText(channel, text)
+
     def sendRsdnNotification(self, text):
         self.sendChannelText(GO.utf8(self.config['channels']['notifications']), text)
 

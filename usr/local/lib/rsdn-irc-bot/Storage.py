@@ -11,82 +11,84 @@ class CStorage(CConfigurable):
         CConfigurable.__init__(self, '/etc/rsdn-irc-bot/storage.conf')
         self.connection = psycopg2.connect(database=self.config['database'], user=self.config['user'], password=self.config['password'], host=self.config['host'], port=self.config['port'])
 
-    def getNicknameId(self, nickname):
-        sql = "SELECT id FROM nicknames WHERE nickname = %s"
+    def prepare(self, sql, data):
         cursor = self.connection.cursor()
-        cursor.execute(sql, (nickname,))
-        uid = cursor.fetchone()
-        if uid == None:
-            cursor.execute("INSERT INTO nicknames (nickname) VALUES (%s)", (nickname,))
-            self.connection.commit()
-            cursor.execute(sql, (nickname,))
-            uid = cursor.fetchone()
-        cursor.close()
-        return uid[0]
+        cursor.execute(sql, data)
+        return cursor
 
-    def logChannelMessage(self, nickname, channel, message, is_bot_command):
-        cursor = self.connection.cursor()
-        nickname_id = self.getNicknameId(nickname)
-        cursor.execute("INSERT INTO channels_logs (nickname_id, channel, message, is_bot_command) VALUES (%s, %s, %s, %s)", (nickname_id, channel, message, is_bot_command))
-        cursor.execute("update nicknames set last_seen = %s", (datetime.datetime.now(),))
-        self.connection.commit()
-        cursor.close()
-
-    def getTopOfChannel(self, channel, num):
-        top = ''
-        cursor = self.connection.cursor()
-        cursor.execute("""
-        select nicknames.nickname, count(channels_logs.nickname_id) from channels_logs
-        left join nicknames on nicknames.id=channels_logs.nickname_id
-        where channel=%s
-        group by nicknames.nickname
-        order by 2 desc
-        limit %s
-        """, (channel,num))
-        result = cursor.fetchall()
+    def queryRow(self, sql, data=tuple()):
+        cursor = self.prepare(sql, data)
+        print cursor.query
+        result = cursor.fetchone()
         cursor.close()
         return result
 
-    def getRsdnRowVersion(self, name):
-        sql = "SELECT value FROM rsdn_row_versions WHERE name = %s"
-        cursor = self.connection.cursor()
-        cursor.execute(sql, (name,))
-        uid = cursor.fetchone()
-        if uid == None:
-            cursor.execute("INSERT INTO rsdn_row_versions (name, value) VALUES (%s, %s)", (name, ''))
-            self.connection.commit()
-            cursor.execute(sql, (name,))
-            uid = cursor.fetchone()
+    def query(self, sql, data=tuple()):
+        cursor = self.prepare(sql, data)
+        print cursor.query
+        result = cursor.fetchall()
         cursor.close()
-        return uid[0]
-
-    def setRsdnRowVersion(self, name, value):
-        cursor = self.connection.cursor()
-        cursor.execute("update rsdn_row_versions set value=%s where name=%s", (value, name))
+        return result
+        
+    def execute(self, sql, data=tuple()):
+        cursor = self.prepare(sql, data)
         self.connection.commit()
         cursor.close()
+
+    def getNicknameId(self, nickname):
+        sql = "SELECT id FROM nicknames WHERE nickname = %s"
+        uid = self.queryRow(sql, (nickname,))
+        if uid == None:
+            self.execute("INSERT INTO nicknames (nickname) VALUES (%s)", (nickname,))
+            uid = self.queryRow(sql, (nickname,))
+        return uid[0]
+
+    def logChannelMessage(self, nickname, channel, message, is_bot_command):
+        nickname_id = self.getNicknameId(nickname)
+        self.execute("INSERT INTO channels_logs (nickname_id, channel, message, is_bot_command) VALUES (%s, %s, %s, %s)", (nickname_id, channel, message, is_bot_command))
+        self.execute("update nicknames set last_seen = %s", (datetime.datetime.now(),))
+
+    def getTopOfChannel(self, channel, num):
+        return self.execute("""
+            select nicknames.nickname, count(channels_logs.nickname_id) from channels_logs
+            left join nicknames on nicknames.id=channels_logs.nickname_id
+            where channel=%s
+            group by nicknames.nickname
+            order by 2 desc
+            limit %s
+        """, (channel,num))
+
+    def getRsdnRowVersion(self, name):
+        sql = "SELECT value FROM rsdn_row_versions WHERE name = %s"
+        rid = self.queryRow(sql, (name,))
+        if rid == None:
+            self.execute("INSERT INTO rsdn_row_versions (name, value) VALUES (%s, %s)", (name, ''))
+            rid = self.queryRow(sql, (name,))
+        return rid[0]
+
+    def setRsdnRowVersion(self, name, value):
+        self.execute("update rsdn_row_versions set value=%s where name=%s", (value, name))
 
     def updateRsdnMessages(self, soap_message_info):
         sql = ''
         if not self.isMessageInDb(soap_message_info['messageId']):
             GO.bot.sendLog("RSDN DB. Новое сообщение")
             sql = """
-            INSERT INTO rsdn_messages(
-                topicid, parentid, userid, forumid, subject, messagename, 
-                message, articleid, messagedate, updatedate, userrole, usertitle, 
-                lastmoderated, closed, id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                INSERT INTO rsdn_messages(
+                    topicid, parentid, userid, forumid, subject, messagename, 
+                    message, articleid, messagedate, updatedate, userrole, usertitle, 
+                    lastmoderated, closed, id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
             """
         else:
             sql = """
-            UPDATE rsdn_messages
-            SET topicid=%s, parentid=%s, userid=%s, forumid=%s, subject=%s, 
-                messagename=%s, message=%s, articleid=%s, messagedate=%s, updatedate=%s, 
-                userrole=%s, usertitle=%s, lastmoderated=%s, closed=%s
-            WHERE id=%s;
+                UPDATE rsdn_messages
+                SET topicid=%s, parentid=%s, userid=%s, forumid=%s, subject=%s, 
+                    messagename=%s, message=%s, articleid=%s, messagedate=%s, updatedate=%s, 
+                    userrole=%s, usertitle=%s, lastmoderated=%s, closed=%s
+                WHERE id=%s;
             """
-        cursor = self.connection.cursor()
-        cursor.execute(sql, (
+        self.execute(sql, (
                               soap_message_info['topicId'],
                               soap_message_info['parentId'],
                               soap_message_info['userId'],
@@ -103,25 +105,22 @@ class CStorage(CConfigurable):
                               soap_message_info['closed'],
                               soap_message_info['messageId']
                           ))
-        self.connection.commit()
-        cursor.close()
 
     def updateRsdnUsers(self, soap_user_info):
         sql = ''
         if not self.isUserInDb(soap_user_info['userId']):
             GO.bot.sendLog("RSDN DB. Новый пользователь")
             sql = """
-            INSERT INTO rsdn_users(usernick, username, realname, homepage, wherefrom, origin, userclass, specialization, id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
+                INSERT INTO rsdn_users(usernick, username, realname, homepage, wherefrom, origin, userclass, specialization, id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
             """
         else:
             sql = """
-            UPDATE rsdn_users
-            SET usernick=%s, username=%s, realname=%s, homepage=%s, wherefrom=%s, origin=%s, userclass=%s, specialization=%s
-            WHERE id=%s;
+                UPDATE rsdn_users
+                SET usernick=%s, username=%s, realname=%s, homepage=%s, wherefrom=%s, origin=%s, userclass=%s, specialization=%s
+                WHERE id=%s;
             """
-        cursor = self.connection.cursor()
-        cursor.execute(sql, (
+        self.execute(sql, (
                               soap_user_info['userNick'],
                               soap_user_info['userName'],
                               soap_user_info['realName'],
@@ -132,15 +131,56 @@ class CStorage(CConfigurable):
                               soap_user_info['specialization'],
                               soap_user_info['userId']
                           ))
-        self.connection.commit()
-        cursor.close()
+
+    def updateRating(self, soap_rating):
+        res = self.queryRow("SELECT count(*) FROM rsdn_rating WHERE messageid = %s and topicid = %s and userid = %s", (soap_rating['messageId'], soap_rating['topicId'], soap_rating['userId']))[0]
+        sql = ''
+        if res == 0:
+            GO.bot.sendLog("RSDN DB. Новая оценка")
+            sql = """
+                INSERT INTO rsdn_rating(userrating, rate, ratedate, messageid, topicid, userid)
+                VALUES (%s, %s, %s, %s, %s, %s);
+            """
+        else:
+            sql = """
+                update rsdn_rating
+                set userrating=%s, rate=%s, ratedate=%s
+                where messageid=%s and topicid=%s and userid=%s;
+            """
+        self.execute(sql, (
+                              soap_rating['userRating'],
+                              soap_rating['rate'],
+                              soap_rating['rateDate'],
+                              soap_rating['messageId'],
+                              soap_rating['topicId'],
+                              soap_rating['userId']
+                          ))
+
+    def updateModerate(self, soap_moderate):
+        res = self.queryRow("SELECT count(*) FROM rsdn_moderate WHERE messageid=%s and topicid=%s and userid=%s and forumid=%s", (soap_moderate['messageId'], soap_moderate['topicId'], soap_moderate['userId'], soap_moderate['forumId']))[0]
+        sql = ''
+        if res == 0:
+            GO.bot.sendLog("RSDN DB. Новая отметка модерирования")
+            sql = """
+                INSERT INTO rsdn_moderate(crerate, messageid, topicid, userid, forumid)
+                VALUES (%s, %s, %s, %s, %s);
+            """
+        else:
+            sql = """
+                update rsdn_rating
+                set crerate=%s
+                where messageid=%s and topicid=%s and userid=%s and forumid=%s;
+            """
+        self.execute(sql, (
+                              soap_moderate['create'],
+                              soap_moderate['messageId'],
+                              soap_moderate['topicId'],
+                              soap_moderate['userId'],
+                              soap_moderate['forumId']
+                          ))
 
     def isIdInDb(self, iid, iid_field_name, table):
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT %s FROM %s WHERE %s = %s"%(iid_field_name, table, iid_field_name, '%s'), (iid,))
-        res = cursor.fetchone()
-        cursor.close()
-        return res != None
+        return self.queryRow("SELECT %s FROM %s WHERE %s = %s"%(iid_field_name, table, iid_field_name, '%s'), (iid,)) != None
 
     def isUserInDb(self, uid):
         return self.isIdInDb(uid, 'id', 'rsdn_users') if uid else True
@@ -149,54 +189,49 @@ class CStorage(CConfigurable):
         return self.isIdInDb(mid, 'id', 'rsdn_messages')
         
     def getUserIdByName(self, userName):
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT id FROM rsdn_users WHERE username = %s", (userName,))
-        res = cursor.fetchone()
-        cursor.close()
-        return None if res == None else res
+        return self.queryRow("SELECT id FROM rsdn_users WHERE username = %s", (userName,))
         
 
     def getTodayEvents(self, channel):
         result = dict()
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT count(id) FROM channels_logs WHERE date(date_and_time) = date(now()) and is_bot_command='false' and channel=%s", (channel, ))
-        result['ch_msgs'] = cursor.fetchone()[0]
-        cursor.execute("SELECT count(id) FROM channels_logs WHERE date(date_and_time) = date(now()) and is_bot_command='true' and channel=%s", (channel, ))
-        result['ch_bot'] = cursor.fetchone()[0]
+        result['ch_msgs'] = self.queryRow("SELECT count(id) FROM channels_logs WHERE date(date_and_time) = date(now()) and is_bot_command='false' and channel=%s", (channel, ))[0]
+        result['ch_bot']  = self.quertRow("SELECT count(id) FROM channels_logs WHERE date(date_and_time) = date(now()) and is_bot_command='true' and channel=%s", (channel, ))[0]
         fid = GO.rsdn.getForumId(channel[1:].lower())
         if fid:
-            cursor.execute("SELECT count(id) FROM rsdn_messages WHERE date(messagedate) = date(now()) and forumid=%s", (fid, ))
-            result['f_msgs'] = cursor.fetchone()[0]
+            result['f_msgs'] = self.queryRow("SELECT count(id) FROM rsdn_messages WHERE date(messagedate) = date(now()) and forumid=%s", (fid, ))[0]
         else:
             result['f_msgs'] = 'Неприменимо'
-        cursor.close()
         return result
 
     def getUserStats(self, uid):
         result = dict()
-        cursor = self.connection.cursor()
-        cursor.execute("select count(id) from rsdn_messages where userid=%s", (uid, ))
-        result['f_msgs'] = cursor.fetchone()[0]
-        cursor.execute("""
-        select rsdn_users.username, count(rsdn_messages.id) 
-        from rsdn_messages
-        left join rsdn_users on rsdn_users.id = rsdn_messages.userid
-        where rsdn_messages.parentid in (select id from rsdn_messages where userid=%s)
-        group by rsdn_users.username
-        order by 2 desc
-        limit 10
-        """, (uid, ))
-        result['t10_o2u'] = ', '.join(['%s:%s'%(mber,cnt) for mber, cnt in cursor.fetchall()])
-        cursor.execute("""
-        select rsdn_users.username, count(rsdn_messages.id)
-        from rsdn_messages
-        left join rsdn_users on rsdn_users.id = rsdn_messages.userid
-        where rsdn_messages.id in (select parentid from rsdn_messages where userid=%s)
-        group by rsdn_users.username
-        order by 2 desc
-        limit 10
-        """, (uid, ))
-        result['t10_u2o'] = ', '.join(['%s:%s'%(mber,cnt) for mber, cnt in cursor.fetchall()])
-        cursor.close()
+        result['f_msgs'] = self.queryRow("select count(id) from rsdn_messages where userid=%s", (uid, ))[0]
+        sql = """
+            select rsdn_users.username, count(rsdn_messages.id) 
+            from rsdn_messages
+            left join rsdn_users on rsdn_users.id = rsdn_messages.userid
+            where rsdn_messages.parentid in (select id from rsdn_messages where userid=%s)
+            group by rsdn_users.username
+            order by 2 desc
+            limit 10
+        """
+        result['t10_o2u'] = ', '.join(['%s:%s'%(mber,cnt) for mber, cnt in self.query(sql, (uid, ))])
+        sql = """
+            select rsdn_users.username, count(rsdn_messages.id)
+            from rsdn_messages
+            left join rsdn_users on rsdn_users.id = rsdn_messages.userid
+            where rsdn_messages.id in (select parentid from rsdn_messages where userid=%s)
+            group by rsdn_users.username
+            order by 2 desc
+            limit 10
+        """
+        result['t10_u2o'] = ', '.join(['%s:%s'%(mber,cnt) for mber, cnt in self.query(sql, (uid, ))])
         return result;
 
+    def getDBStat(self):
+        result = dict()
+        for table in self.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"):
+            result[table[0]] = self.queryRow("SELECT count(*) FROM %s"%table[0])[0]
+        return result
+        
+        

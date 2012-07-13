@@ -152,3 +152,10 @@ class CCommander(object):
     def today(self, nickname, channel, parametres):
         data = GO.storage.getTodayEvents(channel)
         return [[1, 'Сообщений на канале: %s, обращений к роботу: %s, сообщений на форуме канала: %s'%(data['ch_msgs'], data['ch_bot'], data['f_msgs'])]]
+
+    def dbstat(self, nickname, channel, parametres):
+        result = []
+        stat = GO.storage.getDBStat()
+        for table in stat.keys():
+            result.append([1, 'Количество записей в таблице %s: %d'%(table, stat[table])])
+        return result
