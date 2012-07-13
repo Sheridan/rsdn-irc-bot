@@ -4,7 +4,7 @@
 
 -- Dumped from database version 9.1.4
 -- Dumped by pg_dump version 9.1.4
--- Started on 2012-07-13 11:43:31 MSK
+-- Started on 2012-07-13 23:43:22 MSK
 
 SET statement_timeout = 0;
 SET client_encoding = 'UTF8';
@@ -439,7 +439,7 @@ GRANT ALL ON SCHEMA public TO postgres;
 GRANT ALL ON SCHEMA public TO PUBLIC;
 
 
--- Completed on 2012-07-13 11:43:31 MSK
+-- Completed on 2012-07-13 23:43:23 MSK
 
 --
 -- PostgreSQL database dump complete
