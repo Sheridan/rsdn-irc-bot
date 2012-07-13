@@ -114,6 +114,7 @@ class CCommander(object):
         (ok, num) = self._checkInt(''.join(parametres), 2, 30)
         if not ok: return [[0, num]]
         reply = []
+        print GO.storage.getTopOfChannel(channel, num)
         for line in GO.storage.getTopOfChannel(channel, num):
             reply.append("%s: %s"%line)
         return [[1, "Top%s флеймеров канала %s: %s"%(num, channel, ', '.join(reply))]]

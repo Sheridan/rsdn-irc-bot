@@ -18,14 +18,14 @@ class CStorage(CConfigurable):
 
     def queryRow(self, sql, data=tuple()):
         cursor = self.prepare(sql, data)
-        print cursor.query
+        #print cursor.query
         result = cursor.fetchone()
         cursor.close()
         return result
 
     def query(self, sql, data=tuple()):
         cursor = self.prepare(sql, data)
-        print cursor.query
+        #print cursor.query
         result = cursor.fetchall()
         cursor.close()
         return result
@@ -49,14 +49,14 @@ class CStorage(CConfigurable):
         self.execute("update nicknames set last_seen = %s", (datetime.datetime.now(),))
 
     def getTopOfChannel(self, channel, num):
-        return self.execute("""
+        return self.query("""
             select nicknames.nickname, count(channels_logs.nickname_id) from channels_logs
             left join nicknames on nicknames.id=channels_logs.nickname_id
             where channel=%s
             group by nicknames.nickname
             order by 2 desc
             limit %s
-        """, (channel,num))
+        """, (channel, num))
 
     def getRsdnRowVersion(self, name):
         sql = "SELECT value FROM rsdn_row_versions WHERE name = %s"
@@ -71,8 +71,9 @@ class CStorage(CConfigurable):
 
     def updateRsdnMessages(self, soap_message_info):
         sql = ''
-        if not self.isMessageInDb(soap_message_info['messageId']):
-            GO.bot.sendLog("RSDN DB. Новое сообщение")
+        exists = self.isMessageInDb(soap_message_info['messageId'])
+        if not exists:
+            #GO.bot.sendLog("RSDN DB. Новое сообщение")
             sql = """
                 INSERT INTO rsdn_messages(
                     topicid, parentid, userid, forumid, subject, messagename, 
@@ -105,11 +106,13 @@ class CStorage(CConfigurable):
                               soap_message_info['closed'],
                               soap_message_info['messageId']
                           ))
+        return exists
 
     def updateRsdnUsers(self, soap_user_info):
         sql = ''
-        if not self.isUserInDb(soap_user_info['userId']):
-            GO.bot.sendLog("RSDN DB. Новый пользователь")
+        exists = self.isUserInDb(soap_user_info['userId'])
+        if not exists:
+            #GO.bot.sendLog("RSDN DB. Новый пользователь")
             sql = """
                 INSERT INTO rsdn_users(usernick, username, realname, homepage, wherefrom, origin, userclass, specialization, id)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
@@ -131,12 +134,13 @@ class CStorage(CConfigurable):
                               soap_user_info['specialization'],
                               soap_user_info['userId']
                           ))
+        return exists
 
     def updateRating(self, soap_rating):
-        res = self.queryRow("SELECT count(*) FROM rsdn_rating WHERE messageid = %s and topicid = %s and userid = %s", (soap_rating['messageId'], soap_rating['topicId'], soap_rating['userId']))[0]
+        exists = self.queryRow("SELECT count(*) FROM rsdn_rating WHERE messageid = %s and topicid = %s and userid = %s", (soap_rating['messageId'], soap_rating['topicId'], soap_rating['userId']))[0] > 0
         sql = ''
-        if res == 0:
-            GO.bot.sendLog("RSDN DB. Новая оценка")
+        if not exists:
+            #GO.bot.sendLog("RSDN DB. Новая оценка")
             sql = """
                 INSERT INTO rsdn_rating(userrating, rate, ratedate, messageid, topicid, userid)
                 VALUES (%s, %s, %s, %s, %s, %s);
@@ -155,12 +159,13 @@ class CStorage(CConfigurable):
                               soap_rating['topicId'],
                               soap_rating['userId']
                           ))
+        return exists
 
     def updateModerate(self, soap_moderate):
-        res = self.queryRow("SELECT count(*) FROM rsdn_moderate WHERE messageid=%s and topicid=%s and userid=%s and forumid=%s", (soap_moderate['messageId'], soap_moderate['topicId'], soap_moderate['userId'], soap_moderate['forumId']))[0]
+        exists = self.queryRow("SELECT count(*) FROM rsdn_moderate WHERE messageid=%s and topicid=%s and userid=%s and forumid=%s", (soap_moderate['messageId'], soap_moderate['topicId'], soap_moderate['userId'], soap_moderate['forumId']))[0] > 0
         sql = ''
-        if res == 0:
-            GO.bot.sendLog("RSDN DB. Новая отметка модерирования")
+        if not exists:
+            #GO.bot.sendLog("RSDN DB. Новая отметка модерирования")
             sql = """
                 INSERT INTO rsdn_moderate(crerate, messageid, topicid, userid, forumid)
                 VALUES (%s, %s, %s, %s, %s);
@@ -178,6 +183,7 @@ class CStorage(CConfigurable):
                               soap_moderate['userId'],
                               soap_moderate['forumId']
                           ))
+        return exists
 
     def isIdInDb(self, iid, iid_field_name, table):
         return self.queryRow("SELECT %s FROM %s WHERE %s = %s"%(iid_field_name, table, iid_field_name, '%s'), (iid,)) != None
@@ -195,7 +201,7 @@ class CStorage(CConfigurable):
     def getTodayEvents(self, channel):
         result = dict()
         result['ch_msgs'] = self.queryRow("SELECT count(id) FROM channels_logs WHERE date(date_and_time) = date(now()) and is_bot_command='false' and channel=%s", (channel, ))[0]
-        result['ch_bot']  = self.quertRow("SELECT count(id) FROM channels_logs WHERE date(date_and_time) = date(now()) and is_bot_command='true' and channel=%s", (channel, ))[0]
+        result['ch_bot']  = self.queryRow("SELECT count(id) FROM channels_logs WHERE date(date_and_time) = date(now()) and is_bot_command='true' and channel=%s", (channel, ))[0]
         fid = GO.rsdn.getForumId(channel[1:].lower())
         if fid:
             result['f_msgs'] = self.queryRow("SELECT count(id) FROM rsdn_messages WHERE date(messagedate) = date(now()) and forumid=%s", (fid, ))[0]
