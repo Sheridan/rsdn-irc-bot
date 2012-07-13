@@ -14,7 +14,7 @@ class CRSDNSync(Thread, CConfigurable):
         self.terminate = False
         self.timerForumListSync = Timer.CTimer(int(self.config['timers']['sync_forum_list']), self.syncForumsList)
         self.timerDataSync = Timer.CTimer(int(self.config['timers']['sync_data']), self.syncForumsData)
-        self.timerAdditionalSync = Timer.CTimer(int(self.config['timers']['sync_additional']), self.additionalSync)
+        #self.timerAdditionalSync = Timer.CTimer(int(self.config['timers']['sync_additional']), self.additionalSync)
         self.forumsRowVersion = 0
         self.forums = dict()
         self.missedMessages = []
@@ -67,18 +67,17 @@ class CRSDNSync(Thread, CConfigurable):
         f = open('/home/rsdn/mid', 'r')
         mid = int(f.read()) + 1
         f.close()
-        while GO.storage.isMessageInDb(mid):
-            mid += 1
-        f = open('/home/rsdn/mid', 'w')
-        f.write('%d'%mid)
-        f.close()
         x = 0
         while x < 256:
             mids.append(mid)
             mid += 1
-            while GO.storage.isMessageInDb(mid):
-                mid += 32
+            while mid in mids or GO.storage.isMessageInDb(mid):
+                mid += 1
             x += 1
+        f = open('/home/rsdn/mid', 'w')
+        f.write('%d'%mid)
+        f.close()
+        x = 0
         self.getTopics(mids)
 
     def getNewData(self):
@@ -95,32 +94,19 @@ class CRSDNSync(Thread, CConfigurable):
                 mRequestForumInfo.forumId = forum['fid']
                 mRequestForumInfo.isFirstRequest = request.messageRowVersion == ''
                 request.subscribedForums.RequestForumInfo.append(mRequestForumInfo)
-            done = False
-            result = []
-            x = 1
-            while not done:
-                GO.bot.sendLog("RSDN. Синхронизация. Итерация %d"%x)
-                x += 1
-                request.ratingRowVersion   = GO.storage.getRsdnRowVersion('ratingRowVersion')
-                request.messageRowVersion  = GO.storage.getRsdnRowVersion('messageRowVersion')
-                request.moderateRowVersion = GO.storage.getRsdnRowVersion('moderateRowVersion')
-                #print request
-                if len(self.missedMessages):
-                    for mid in self.missedMessages:
-                        if not GO.storage.isMessageInDb(mid):
-                            request.breakMsgIds.int.append(mid)
-                    self.missedMessages = []
-                answer = client.service.GetNewData(request)
-                #print answer
-                done = answer['lastForumRowVersion'] == GO.storage.getRsdnRowVersion('messageRowVersion')
-                if not done:
-                    GO.storage.setRsdnRowVersion('ratingRowVersion'  , answer['lastRatingRowVersion']  )
-                    GO.storage.setRsdnRowVersion('messageRowVersion' , answer['lastForumRowVersion']   )
-                    GO.storage.setRsdnRowVersion('moderateRowVersion', answer['lastModerateRowVersion'])
-                    result.append(answer)
-                    self.mineMissedInMessages(answer['newMessages'][0])
-            
-            return result
+            request.ratingRowVersion   = GO.storage.getRsdnRowVersion('ratingRowVersion')
+            request.messageRowVersion  = GO.storage.getRsdnRowVersion('messageRowVersion')
+            request.moderateRowVersion = GO.storage.getRsdnRowVersion('moderateRowVersion')
+            for mid in self.missedMessages:
+                if not GO.storage.isMessageInDb(mid):
+                    request.breakMsgIds.int.append(mid)
+            self.missedMessages = []
+            answer = client.service.GetNewData(request)
+            #print answer
+            GO.storage.setRsdnRowVersion('ratingRowVersion'  , answer['lastRatingRowVersion']  )
+            GO.storage.setRsdnRowVersion('messageRowVersion' , answer['lastForumRowVersion']   )
+            GO.storage.setRsdnRowVersion('moderateRowVersion', answer['lastModerateRowVersion'])
+            return answer
         return None
 
     def getNewUsers(self):
@@ -169,15 +155,21 @@ class CRSDNSync(Thread, CConfigurable):
                 self.missedMembers.append(message['userId'])
 
     def syncForumsData(self):
+        self.additionalSync()
         GO.bot.sendLog("RSDN. Запуск синхронизации")
-        newData = self.getNewData()
-        if newData != None:
-            msgcount = { True: 0, False: 0 }
-            mdrcount = { True: 0, False: 0 }
-            ratcount = { True: 0, False: 0 }
-            for newDataBit in newData:
-                #print newDataBit
-                for message in newDataBit['newMessages'][0]:
+        msgcount = { True: 0, False: 0 }
+        mdrcount = { True: 0, False: 0 }
+        ratcount = { True: 0, False: 0 }
+        
+        while True:
+            msgcnt = 0
+            ratcnt = 0
+            mdrcnt = 0
+            newData = self.getNewData()
+            if newData == None:
+                break
+            if len(newData['newMessages']):
+                for message in newData['newMessages'][0]:
                     msgcount[GO.storage.updateRsdnMessages(message)] += 1
                     fid = message['forumId']
                     if fid:
@@ -200,17 +192,24 @@ class CRSDNSync(Thread, CConfigurable):
                         if message['parentId'] == 0:
                             GO.bot.sendChannelNotification(fchannel, 'Новый топик %s'%text)
                             GO.bot.sendChannelNotification(fchannel, urls)
-                
-                if len(newDataBit['newRating']):
-                    for rating in newDataBit['newRating'][0]:
-                        ratcount[GO.storage.updateRating(rating)] += 1
-                if len(newDataBit['newModerate']):
-                    for moderate in newDataBit['newModerate'][0]:
-                        mdrcount[GO.storage.updateModerate(moderate)] += 1
+                self.mineMissedInMessages(newData['newMessages'][0])
+            if len(newData['newRating']):
+                for rating in newData['newRating'][0]:
+                    ratcount[GO.storage.updateRating(rating)] += 1
+                print newData['newRating']
+            if len(newData['newModerate']):
+                for moderate in newData['newModerate'][0]:
+                    mdrcount[GO.storage.updateModerate(moderate)] += 1
             
-            GO.bot.sendLog("RSDN. Обработка новых сообщений закончена, принято %d, из них новых: %d, обновлено: %d"%(msgcount[True]+msgcount[False], msgcount[False], msgcount[True]))
-            GO.bot.sendLog("RSDN. Обработка новых оценок закончена, принято %d, из них новых: %d, обновлено: %d"%(ratcount[True]+ratcount[False], ratcount[False], ratcount[True]))
-            GO.bot.sendLog("RSDN. Обработка новых отметок модерирования закончена, принято %d, из них новых: %d, обновлено: %d"%(mdrcount[True]+mdrcount[False], mdrcount[False], mdrcount[True]))
+            for mid in GO.storage.getBrokenMessages():
+                if mid not in self.missedMessages:
+                    self.missedMessages.append(mid)
+            print len(newData['newRating']), len(newData['newModerate']), len(newData['newMessages']), len(self.missedMessages)
+            if len(newData['newRating']) == 0 and len(newData['newModerate']) == 0 and len(newData['newMessages']) == 0 and len(self.missedMessages) == 0:
+                break
+        GO.bot.sendLog("RSDN. Обработка новых сообщений закончена, принято %d, из них новых: %d, обновлено: %d"%(msgcount[True]+msgcount[False], msgcount[False], msgcount[True]))
+        GO.bot.sendLog("RSDN. Обработка новых оценок закончена, принято %d, из них новых: %d, обновлено: %d"%(ratcount[True]+ratcount[False], ratcount[False], ratcount[True]))
+        GO.bot.sendLog("RSDN. Обработка новых отметок модерирования закончена, принято %d, из них новых: %d, обновлено: %d"%(mdrcount[True]+mdrcount[False], mdrcount[False], mdrcount[True]))
         newUsers = self.getNewUsers()
         if newUsers != None:
             usrcount = { True: 0, False: 0 }
@@ -314,10 +313,10 @@ class CRSDNSync(Thread, CConfigurable):
     def run(self):
         self.timerForumListSync.start()
         self.timerDataSync.start()
-        self.timerAdditionalSync.start()
+        #self.timerAdditionalSync.start()
         while not self.terminate:
             time.sleep(1)
-        self.timerAdditionalSync.stop()
+        #self.timerAdditionalSync.stop()
         self.timerDataSync.stop()
         self.timerForumListSync.stop()
 

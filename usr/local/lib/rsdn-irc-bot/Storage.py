@@ -18,14 +18,14 @@ class CStorage(CConfigurable):
 
     def queryRow(self, sql, data=tuple()):
         cursor = self.prepare(sql, data)
-        #print cursor.query
+        print cursor.query
         result = cursor.fetchone()
         cursor.close()
         return result
 
     def query(self, sql, data=tuple()):
         cursor = self.prepare(sql, data)
-        #print cursor.query
+        print cursor.query
         result = cursor.fetchall()
         cursor.close()
         return result
@@ -239,5 +239,17 @@ class CStorage(CConfigurable):
         for table in self.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"):
             result[table[0]] = self.queryRow("SELECT count(*) FROM %s"%table[0])[0]
         return result
+        
+    def getBrokenMessages(self):
+        return self.query("""
+            select i from 
+                (
+                    select distinct t1.parentid as i from rsdn_messages t1
+                    where not exists (select * from rsdn_messages t2 where t1.parentid=t2.id) and t1.parentid != 0
+                union
+                    select distinct t1.topicid as i from rsdn_messages t1
+                    where not exists(select * from rsdn_messages t2 where t1.topicid=t2.id) and t1.topicid != 0
+                ) t
+        """)
         
         
