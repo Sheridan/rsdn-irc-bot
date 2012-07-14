@@ -172,7 +172,7 @@ class CStorage(CConfigurable):
             """
         else:
             sql = """
-                update rsdn_rating
+                update rsdn_moderate
                 set crerate=%s
                 where messageid=%s and topicid=%s and userid=%s and forumid=%s;
             """
