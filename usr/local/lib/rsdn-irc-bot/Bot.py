@@ -247,7 +247,7 @@ class CBot(Thread, CConfigurable):
         self.putcmd(u'NOTICE %s :%s'%(user['nick'], text))
 
     def send_channel_reply(self, user, channel, text):
-        self.putcmd(u'PRIVMSG %s :%s: %s'%(channel, user['nick'], text))
+        self.putcmd(u'PRIVMSG %s :%s: %s'%(GO.unicod(channel), user['nick'], text))
 
     def sendChannelText(self, channel, text):
         #print type(channel), type(text)

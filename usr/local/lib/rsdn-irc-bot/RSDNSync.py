@@ -66,19 +66,23 @@ class CRSDNSync(Thread, CConfigurable):
         GO.bot.sendLog(u'RSDN. Дополнительная синхронизация. Запуск.')
         mids = []
         f = open('/home/rsdn/mid', 'r')
-        mid = int(f.read()) + 1
+        mid = int(f.read()) - 1
         f.close()
-        x = 0
-        while x < 1000:
-            mids.append(mid)
-            while mid in mids or GO.storage.isMessageInDb(mid):
-                mid += 1
-            x += 1
-        f = open('/home/rsdn/mid', 'w')
-        f.write('%d'%mid)
-        f.close()
-        x = 0
-        self.getTopics(mids)
+        if mid > 1:
+            startmid = mid
+            GO.bot.sendLog(u'RSDN. Дополнительная синхронизация. Начинаем сканировать с %d'%mid)
+            x = 0
+            while x < 1000:
+                mids.append(mid)
+                while mid > 1 and mid in mids or GO.storage.isMessageInDb(mid):
+                    mid -= 1
+                x += 1
+            f = open('/home/rsdn/mid', 'w')
+            f.write('%d'%mid)
+            f.close()
+            x = 0
+            GO.bot.sendLog(u'RSDN. Дополнительная синхронизация. Сканирование остановлено на %d. Просмотрено: %d'%(mid, startmid-mid))
+            self.getTopics(mids)
         GO.bot.sendLog(u'RSDN. Дополнительная синхронизация. Закончено.')
 
     def getNewData(self):

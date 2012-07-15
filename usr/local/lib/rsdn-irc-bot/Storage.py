@@ -11,6 +11,9 @@ class CStorage(CConfigurable):
         CConfigurable.__init__(self, '/etc/rsdn-irc-bot/storage.conf')
         self.connection = psycopg2.connect(database=self.config['database'], user=self.config['user'], password=self.config['password'], host=self.config['host'], port=self.config['port'])
 
+    def print_sql(self, sql):
+        print '[-db-] %s'%re.sub(r'(\s+)', ' ', sql)
+
     def prepare(self, sql, data):
         cursor = self.connection.cursor()
         cursor.execute(sql, data)
@@ -18,14 +21,14 @@ class CStorage(CConfigurable):
 
     def queryRow(self, sql, data=tuple()):
         cursor = self.prepare(sql, data)
-        #print cursor.query
+        #self.print_sql(cursor.query)
         result = cursor.fetchone()
         cursor.close()
         return result
 
     def query(self, sql, data=tuple()):
         cursor = self.prepare(sql, data)
-        #print cursor.query
+        self.print_sql(cursor.query)
         result = cursor.fetchall()
         cursor.close()
         return result
@@ -206,7 +209,7 @@ class CStorage(CConfigurable):
         if fid:
             result['f_msgs'] = self.queryRow("SELECT count(id) FROM rsdn_messages WHERE date(messagedate) = date(now()) and forumid=%s", (fid, ))[0]
         else:
-            result['f_msgs'] = 'Неприменимо'
+            result['f_msgs'] = u'Неприменимо'
         return result
 
     def getUserStats(self, uid):
