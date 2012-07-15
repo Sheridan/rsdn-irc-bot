@@ -20,7 +20,7 @@ class CRSDNSync(Thread, CConfigurable):
         self.missedMembers = []
 
     def _client(self):
-        client = Client("http://www.rsdn.ru/ws/janusAT.asmx?WSDL")
+        client = Client('http://www.rsdn.ru/ws/janusAT.asmx?WSDL')
         try:
             client.service.Check()
         except URLError(err):
@@ -29,18 +29,18 @@ class CRSDNSync(Thread, CConfigurable):
         return [1, client]
 
     def getMessageUrlById(self, mid):
-        return 'http://www.rsdn.ru/forum/message/%d.aspx : mid %d'%(mid,mid)
+        return u'http://www.rsdn.ru/forum/message/%d.aspx : mid %d'%(mid,mid)
 
     def getMemberUrlById(self, uid):
-        return 'http://www.rsdn.ru/Users/%d.aspx : uid %d'%(uid,uid)
+        return u'http://www.rsdn.ru/Users/%d.aspx : uid %d'%(uid,uid)
         
     def getForumUrlById(self, fid):
-        return 'http://rsdn.ru/forum/%s/ : fid %d'%(self.forums[fid]['sname'],fid)
+        return u'http://rsdn.ru/forum/%s/ : fid %d'%(self.forums[fid]['sname'],fid)
 
     def syncForumsList(self):
         (ok, client) = self._client()
         if ok:
-            GO.bot.sendLog("RSDN. Список форумов. Запуск.")
+            GO.bot.sendLog(u'RSDN. Список форумов. Запуск.')
             request = client.factory.create('ForumRequest')
             request.userName = self.config['auth']['user']
             request.password = self.config['auth']['password']
@@ -59,17 +59,17 @@ class CRSDNSync(Thread, CConfigurable):
                                     }
             for fid in self.forums.keys():
                 forum = self.forums[fid]
-                GO.bot.joinChannel(forum['sname'], '%s :: %s ( %s )'%(forum['gname'], forum['name'], self.getForumUrlById(fid)))
-            GO.bot.sendLog("RSDN. Список форумов. Закончено.")
+                GO.bot.join_channel(forum['sname'], u'%s :: %s ( %s )'%(forum['gname'], forum['name'], self.getForumUrlById(fid)))
+            GO.bot.sendLog(u'RSDN. Список форумов. Закончено.')
 
     def additionalSync(self):
-        GO.bot.sendLog("RSDN. Дополнительная синхронизация. Запуск.")
+        GO.bot.sendLog(u'RSDN. Дополнительная синхронизация. Запуск.')
         mids = []
         f = open('/home/rsdn/mid', 'r')
         mid = int(f.read()) + 1
         f.close()
         x = 0
-        while x < 512:
+        while x < 1000:
             mids.append(mid)
             while mid in mids or GO.storage.isMessageInDb(mid):
                 mid += 1
@@ -79,7 +79,7 @@ class CRSDNSync(Thread, CConfigurable):
         f.close()
         x = 0
         self.getTopics(mids)
-        GO.bot.sendLog("RSDN. Дополнительная синхронизация. Закончено.")
+        GO.bot.sendLog(u'RSDN. Дополнительная синхронизация. Закончено.')
 
     def getNewData(self):
         if len(self.forums) == 0: return
@@ -132,8 +132,6 @@ class CRSDNSync(Thread, CConfigurable):
             return result
         return None
 
-    
-
     def mineMissedInMessages(self, messages):
         for message in messages:
             for s in ['parentId', 'topicId']:
@@ -144,7 +142,7 @@ class CRSDNSync(Thread, CConfigurable):
 
     def syncForumsData(self):
         self.additionalSync()
-        GO.bot.sendLog("RSDN. Синхронизация. Запуск.")
+        GO.bot.sendLog(u'RSDN. Синхронизация. Запуск.')
         msgcount = { True: 0, False: 0 }
         mdrcount = { True: 0, False: 0 }
         ratcount = { True: 0, False: 0 }
@@ -157,30 +155,30 @@ class CRSDNSync(Thread, CConfigurable):
             if newData == None:
                 break
             sync_iteration += 1
-            GO.bot.sendLog("RSDN. Синхронизация. Итерация: %d."%sync_iteration)
+            GO.bot.sendLog(u'RSDN. Синхронизация. Итерация: %d.'%sync_iteration)
             if len(newData['newMessages']):
                 for message in newData['newMessages'][0]:
                     msgcount[GO.storage.updateRsdnMessages(message)] += 1
                     fid = message['forumId']
                     if fid:
-                        fchannel = '#%s'%GO.utf8(self.forums[fid]['sname'])
-                        text = '`%s`. Автор: %s'%(
-                                                   GO.utf8(message['subject']), 
-                                                   GO.utf8(message['userNick']),
+                        fchannel = '#%s'%self.forums[fid]['sname']
+                        text = u'`%s`. Автор: %s'%(
+                                                   message['subject'], 
+                                                   message['userNick'],
                                                  )
-                        urls = ' | '.join([
+                        urls = u' | '.join([
                                           fchannel,
-                                          GO.utf8(self.getForumUrlById(fid)),
+                                          self.getForumUrlById(fid),
                                           self.getMessageUrlById(message['messageId']), 
                                           self.getMemberUrlById(message['userId'])
                                         ])
-                        GO.bot.sendRsdnNotification('В форуме `%s` новое сообщение: %s'%(
-                                                                                          GO.utf8(self.forums[fid]['name']),
+                        GO.bot.sendRsdnNotification(u'В форуме `%s` новое сообщение: %s'%(
+                                                                                          self.forums[fid]['name'],
                                                                                           text
                                                                                          ))
                         GO.bot.sendRsdnNotification(urls)
                         if message['parentId'] == 0:
-                            GO.bot.sendChannelNotification(fchannel, 'Новый топик %s'%text)
+                            GO.bot.sendChannelNotification(fchannel, u'Новый топик %s'%text)
                             GO.bot.sendChannelNotification(fchannel, urls)
                 self.mineMissedInMessages(newData['newMessages'][0])
             if len(newData['newRating']):
@@ -196,22 +194,22 @@ class CRSDNSync(Thread, CConfigurable):
             #print len(newData['newRating']), len(newData['newModerate']), len(newData['newMessages']), len(self.missedMessages)
             if len(newData['newRating']) == 0 and len(newData['newModerate']) == 0 and len(newData['newMessages']) == 0 and len(self.missedMessages) == 0:
                 break
-        GO.bot.sendLog("RSDN. Синхронизация. Собщения: принято %d, из них новых %d, обновлено %d."%(msgcount[True]+msgcount[False], msgcount[False], msgcount[True]))
-        GO.bot.sendLog("RSDN. Синхронизация. Оценки: принято %d, из них новых %d, обновлено %d."%(ratcount[True]+ratcount[False], ratcount[False], ratcount[True]))
-        GO.bot.sendLog("RSDN. Синхронизация. Модерирование: принято %d, из них новых %d, обновлено %d."%(mdrcount[True]+mdrcount[False], mdrcount[False], mdrcount[True]))
+        GO.bot.sendLog(u'RSDN. Синхронизация. Собщения: принято %d, из них новых %d, обновлено %d.'%(msgcount[True]+msgcount[False], msgcount[False], msgcount[True]))
+        GO.bot.sendLog(u'RSDN. Синхронизация. Оценки: принято %d, из них новых %d, обновлено %d.'%(ratcount[True]+ratcount[False], ratcount[False], ratcount[True]))
+        GO.bot.sendLog(u'RSDN. Синхронизация. Модерирование: принято %d, из них новых %d, обновлено %d.'%(mdrcount[True]+mdrcount[False], mdrcount[False], mdrcount[True]))
         newUsers = self.getNewUsers()
         if newUsers != None:
             usrcount = { True: 0, False: 0 }
             for newUsersBit in newUsers:
                 for user in newUsersBit['users'][0]:
                     usrcount[GO.storage.updateRsdnUsers(user)] += 1
-                    GO.bot.sendRsdnNotification('Новый пользователь `%s`, `%s`, `%s`: %s'%(
-                                                                                GO.utf8(user['userName']),
-                                                                                GO.utf8(user['userNick']),
-                                                                                GO.utf8(user['realName']),
+                    GO.bot.sendRsdnNotification(u'Новый пользователь `%s`, `%s`, `%s`: %s'%(
+                                                                                user['userName'],
+                                                                                user['userNick'],
+                                                                                user['realName'],
                                                                                 self.getMemberUrlById(user['userId'])
                                                                               ))
-            GO.bot.sendLog("RSDN. Синхронизация. Новые пользователи: принято %d, из них новых %d, обновлено %d."%(usrcount[True]+usrcount[False], usrcount[False], usrcount[True]))
+            GO.bot.sendLog(u'RSDN. Синхронизация. Новые пользователи: принято %d, из них новых %d, обновлено %d.'%(usrcount[True]+usrcount[False], usrcount[False], usrcount[True]))
         if len(self.missedMembers):
             users = self.loadUsersByIds(self.missedMembers)
             self.missedMembers = []
@@ -219,11 +217,11 @@ class CRSDNSync(Thread, CConfigurable):
                 usrcount = { True: 0, False: 0 }
                 for user in users['users'][0]:
                     usrcount[GO.storage.updateRsdnUsers(user)] += 1
-                GO.bot.sendLog("RSDN. Синхронизация. Пропущенные пользователи: принято %d, из них новых %d, обновлено %d."%(usrcount[True]+usrcount[False], usrcount[False], usrcount[True]))
-        GO.bot.sendLog("RSDN. Синхронизация. Закончено.")
+                GO.bot.sendLog(u'RSDN. Синхронизация. Пропущенные пользователи: принято %d, из них новых %d, обновлено %d.'%(usrcount[True]+usrcount[False], usrcount[False], usrcount[True]))
+        GO.bot.sendLog(u'RSDN. Синхронизация. Закончено.')
 
     def getUser(self, uid):
-        GO.bot.sendLog("RSDN. Получение пользователя по его идентификатору.")
+        GO.bot.sendLog(u'RSDN. Получение пользователя по его идентификатору.')
         data = self.loadUsersByIds([uid])
         if data != None and list(data['users']):
             user = data['users'][0][0]
@@ -235,14 +233,14 @@ class CRSDNSync(Thread, CConfigurable):
         if len(self.forums) == 0: return
         (ok, client) = self._client()
         if ok:
-            GO.bot.sendLog("RSDN. Получение пользователей. Запуск. Учетных записей в запросе: %d."%len(ids))
+            GO.bot.sendLog(u'RSDN. Получение пользователей. Запуск. Учетных записей в запросе: %d.'%len(ids))
             request = client.factory.create('UserByIdsRequest')
             request.userName = self.config['auth']['user']
             request.password = self.config['auth']['password']
             for uid in ids:
                 request.userIds.int.append(uid)
             answer = client.service.GetUserByIds(request)
-            GO.bot.sendLog("RSDN. Получение пользователей. Закончено.")
+            GO.bot.sendLog(u'RSDN. Получение пользователей. Закончено.')
             return answer
         return None
 
@@ -253,7 +251,7 @@ class CRSDNSync(Thread, CConfigurable):
         (ok, client) = self._client()
         if ok:
             results = []
-            GO.bot.sendLog("RSDN. Получение топиков. Запуск. Топиков в запросе: %d."%len(mids))
+            GO.bot.sendLog(u'RSDN. Получение топиков. Запуск. Топиков в запросе: %d.'%len(mids))
             request = client.factory.create('TopicRequest')
             request.userName = self.config['auth']['user']
             request.password = self.config['auth']['password']
@@ -270,20 +268,20 @@ class CRSDNSync(Thread, CConfigurable):
                 message['exists'] = True
                 for m in answer['Messages'][0]:
                     msgcount[GO.storage.updateRsdnMessages(m)] += 1
-                    nick = GO.utf8(m['userNick'])
+                    nick = m['userNick']
                     message['members'][nick] = 1 if nick not in message['members'] else message['members'][nick] + 1
                     if m['messageId'] == mid:
                         message['self'] = {
-                                            'subject': GO.utf8(m['subject']), 
+                                            'subject': m['subject'], 
                                             'user'   : nick,
-                                            'message': GO.utf8(m['message']), 
+                                            'message': m['message'], 
                                             'date'   : m['messageDate'],
                                             'mid'    : m['messageId'], 
                                             'closed' : m['closed']
                                           }
                     if m['parentId'] == 0:
                         message['top'] = {
-                                            'subject': GO.utf8(m['subject']), 
+                                            'subject': m['subject'], 
                                             'user'   : nick,
                                             'date'   : m['messageDate'],
                                             'mid'    : m['messageId'], 
@@ -296,13 +294,13 @@ class CRSDNSync(Thread, CConfigurable):
                 if len(answer['Moderate']):
                     for moderate in answer['Moderate'][0]:
                         mdrcount[GO.storage.updateModerate(moderate)] += 1
-                GO.bot.sendLog("RSDN. Получение топиков. Сообщения: принято %d, из них новых %d, обновлено %d."%(msgcount[True]+msgcount[False], msgcount[False], msgcount[True]))
-                GO.bot.sendLog("RSDN. Получение топиков. Оценки:, принято %d, из них новых %d, обновлено %d."%(ratcount[True]+ratcount[False], ratcount[False], ratcount[True]))
-                GO.bot.sendLog("RSDN. Получение топиков. Модерирование: принято %d, из них новых %d, обновлено %d."%(mdrcount[True]+mdrcount[False], mdrcount[False], mdrcount[True]))
+                GO.bot.sendLog(u'RSDN. Получение топиков. Сообщения: принято %d, из них новых %d, обновлено %d.'%(msgcount[True]+msgcount[False], msgcount[False], msgcount[True]))
+                GO.bot.sendLog(u'RSDN. Получение топиков. Оценки:, принято %d, из них новых %d, обновлено %d.'%(ratcount[True]+ratcount[False], ratcount[False], ratcount[True]))
+                GO.bot.sendLog(u'RSDN. Получение топиков. Модерирование: принято %d, из них новых %d, обновлено %d.'%(mdrcount[True]+mdrcount[False], mdrcount[False], mdrcount[True]))
                 results.append(message)
             else:
                 results.append({'exists': False})
-            GO.bot.sendLog("RSDN. Получение топиков. Закончено.")
+            GO.bot.sendLog(u'RSDN. Получение топиков. Закончено.')
         else:
             results.append({'exists': False})
             
