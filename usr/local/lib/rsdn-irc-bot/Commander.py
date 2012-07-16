@@ -109,6 +109,8 @@ class CCommander(object):
             result.append([1, u'Сообщений (в БД): %s'%(dbdata['f_msgs'])])
             result.append([1, u'top10 отвечающих пользователю (из БД): %s'%dbdata['t10_o2u']])
             result.append([1, u'top10 ответов пользователям (из БД): %s'%dbdata['t10_u2o']])
+            result.append([1, u'Оценки, выставленные пользователем (из БД): %s'%GO.storage.getUserToOtherRating(uid)])
+            result.append([1, u'Оценки, выставленные пользователю (из БД): %s'%GO.storage.getOtherToUserRating(uid)])
             
             return result
         return [[0, u'Пользователя не существует или ошибка сервера']]

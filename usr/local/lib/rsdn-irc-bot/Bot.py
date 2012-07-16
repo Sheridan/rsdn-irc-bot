@@ -156,7 +156,7 @@ class CBot(Thread, CConfigurable):
         if target == GO.utf8(self.config['auth']['nick']):
             pass
         else:
-            self.channel_received(user, target, text)
+            GO.storage.logChannelMessage(user['nick'], target, text, self.channel_received(user, target, text))
 
     def user_to_dict(self, nickname, ident, host):
         return {

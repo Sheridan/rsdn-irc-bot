@@ -256,13 +256,13 @@ class CStorage(CConfigurable):
                 ) t
         """%(sfids, sfids))
         
-    def getTopicRating(self, mid):
+    def count_rating(self, data):
         smile      = 0
         plus       = 0
         minus      = 0
         rate_num   = 0
         rate_total = 0
-        for (userrating, rate) in self.query('select userrating, rate from rsdn_rating where messageid=%s', (mid, )):
+        for (userrating, rate) in data:
             if rate > 0:
                 rate_num += 1
                 rate_total += rate*userrating
@@ -270,6 +270,21 @@ class CStorage(CConfigurable):
             elif rate == -2: smile += 1
             elif rate == -4: plus  += 1
         return '%d(%d), +%d, -%d, %d x :)'%(rate_total, rate_num, plus, minus, smile)
+    
+    def getTopicRating(self, mid):
+        return self.count_rating(self.query('select userrating, rate from rsdn_rating where messageid=%s', (mid, )))
+        
+    def getUserToOtherRating(self, uid):
+        return self.count_rating(self.query('select userrating, rate from rsdn_rating where userid=%s', (uid, ))) # оценки выствленные uid пользователем другим сообщениям
+
+    def getOtherToUserRating(self, uid):
+        return self.count_rating(self.query("""
+            select rsdn_rating.userrating, rsdn_rating.rate
+            from rsdn_rating 
+            left join rsdn_messages on rsdn_messages.id = rsdn_rating.messageid
+            where rsdn_messages.userid=%s
+            """
+            , (uid, ))) # оценки выствленные другими пользователями сообщениям uid пользователя
         
     def getUser(self, uid):
         return self.queryRow("select usernick, username, realname, homepage, wherefrom, origin, userclass, specialization from rsdn_users where id=%s", (uid, ))
