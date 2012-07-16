@@ -82,6 +82,8 @@ class CCommander(object):
             #self.bot.sendPrivate(nickname, '-------------------------')
             result.append([1, u'Участники: %s'%(u', '.join(['%s:%s'%(mber,cnt) for mber, cnt in data['members'].items()]))])
             result.append([1, u'Всего сообщений в топике: %d'%data['count']])
+            rate = GO.storage.getTopicRating(mid)
+            result.append([1, u'Оценка сообщения (из БД): %s'%rate])
             return result
         return [[0, u'Сообщение не существует или ошибка сервера']]
 
@@ -107,6 +109,7 @@ class CCommander(object):
             result.append([1, u'Сообщений (в БД): %s'%(dbdata['f_msgs'])])
             result.append([1, u'top10 отвечающих пользователю (из БД): %s'%dbdata['t10_o2u']])
             result.append([1, u'top10 ответов пользователям (из БД): %s'%dbdata['t10_u2o']])
+            
             return result
         return [[0, u'Пользователя не существует или ошибка сервера']]
 

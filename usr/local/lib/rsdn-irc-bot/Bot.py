@@ -33,7 +33,7 @@ class CBotStatus(object):
     def is_user_on_channel(self, channel, user):
        return self.is_on_channel(channel) and user in self.data['channels'][channel].keys()
     
-    def remove_user_from_channel(self, channel):
+    def remove_user_from_channel(self, channel, user):
         if self.is_user_on_channel(channel, user):
             del self.data['channels'][channel][user]
 
@@ -99,8 +99,8 @@ class CBot(Thread, CConfigurable):
 
     def start_robot(self):
         self.auth_oper()
-        self.join_channel(self.config['channels']['log'], u'Лог работы робота')
-        self.join_channel(self.config['channels']['notifications'], u'Все сообщения о активности на RSDN')
+        self.go_join_channel(self.config['channels']['log'], u'Лог работы робота')
+        self.go_join_channel(self.config['channels']['notifications'], u'Все сообщения о активности на RSDN')
         GO.rsdn.start()
         self.channelsListObserveTimer.start()
         self.sendLog('Online')
@@ -108,7 +108,18 @@ class CBot(Thread, CConfigurable):
     def request_channels(self):
         self.putcmd('LIST')
 
-    def join_channel(self, channel, topic=None):
+    def user_has_join_channel(self, prefix, arguments):
+        # :Sheridan|Work!Sheridan@5FC2A92.D42BA605.60BBCFB.IP JOIN :#unix
+        user = self.user_prefix_split(prefix)
+        self.user_entered(user, arguments[1:])
+    
+    def user_has_part_channel(self, prefix, arguments):
+        #  :Sheridan|Work!Sheridan@5FC2A92.D42BA605.60BBCFB.IP PART #bot.log :Once you know what it is you want to be true, instinct is a very useful device for enabling you to know that it is
+        data = arguments.split(' ')
+        self.user_part_channel(self.user_prefix_split(prefix), data[0])
+        
+    def go_join_channel(self, channel, topic=None):
+        # :irc.rsdn.ru 322 RSDNServ #mag 1 :Сайт :: RSDN Magazine ( http://rsdn.ru/forum/mag/ : fid 20 )
         if channel[0] != '#':
             channel = '#' + channel
         channel = GO.unicod(channel)
@@ -127,13 +138,16 @@ class CBot(Thread, CConfigurable):
     def whoreply(self, arguments):
         #  RSDNServ #флэйм tmp_acnt rsdn-454FD1D1.dynamic.avangarddsl.ru irc.rsdn.ru scumware[] H@ :0 Философ
         data = arguments.split(' ')
-        self.user_entered(data[1], data[5], data[2], data[3])
+        self.user_entered(self.user_to_dict(data[5], data[2], data[3]), data[1])
 
-    def user_entered(self, channel, nickname, ident, host):
-        if nickname != GO.utf8(self.config['auth']['nick']):
-            self.status.add_user_to_channel(channel, nickname)
-            if self.isOperator('%s!%s@%s'%(nickname,ident,host), channel):
-                self.set_user_mode(nickname, channel, '+o')
+    def user_entered(self, user, channel):
+        if user['nick'] != GO.utf8(self.config['auth']['nick']):
+            self.status.add_user_to_channel(channel, user['nick'])
+            if self.isOperator(user['full'], channel):
+                self.set_user_mode(user['nick'], channel, '+o')
+    
+    def user_part_channel(self, user, channel):
+        self.status.remove_user_from_channel(channel, user['nick'])
 
     def received_message(self, prefix, arguments):
         user = self.user_prefix_split(prefix)
@@ -144,14 +158,43 @@ class CBot(Thread, CConfigurable):
         else:
             self.channel_received(user, target, text)
 
+    def user_to_dict(self, nickname, ident, host):
+        return {
+                    'full' : '%s!%s@%s'%(nickname,ident,host),
+                    'nick' : nickname,
+                    'ident': ident,
+                    'host' : host
+               }
+
     def user_prefix_split(self, prefix):
-        user = dict()
-        user['full']  = prefix
-        user['nick']  = prefix[0:prefix.find('!')]
-        user['ident'] = prefix[prefix.find('!')+1:prefix.find('@')]
-        user['host']  = prefix[prefix.find('@')+1:]
-        print user
-        return user
+        return self.user_to_dict(prefix[0:prefix.find('!')], prefix[prefix.find('!')+1:prefix.find('@')], prefix[prefix.find('@')+1:])
+
+    def user_mode_changed(self, prefix, arguments):
+        # :Sheridan|Work!Sheridan@5FC2A92.D42BA605.60BBCFB.IP MODE #bot.log -o RSDNServ
+        data = arguments.split(' ')
+        if len(data) == 3:
+            who = self.user_prefix_split(prefix)
+            channel     = data[0]
+            mode        = data[1]
+            target_user = data[2]
+            if target_user == GO.utf8(self.config['auth']['nick']):
+                mode_prefix = mode[0]
+                mode = mode[1:]
+                if mode_prefix == '-':
+                    self.putcmd(u'SAMODE %s +o %s'%(channel, self.config['auth']['nick']))
+                    self.set_user_mode(self.config['auth']['nick'], channel, '+%s'%mode)
+                    self.set_user_mode(who['nick'], channel, '-%s'%mode)
+
+    def user_has_been_kicked(self, prefix, arguments):
+        #  :Sheridan|Work!Sheridan@5FC2A92.D42BA605.60BBCFB.IP KICK #bot.log RSDNServ :Sheridan|Work
+        data = arguments.split(' ')
+        who = self.user_prefix_split(prefix)
+        channel     = data[0]
+        target_user = data[1]
+        if target_user == GO.utf8(self.config['auth']['nick']):
+            self.status.remove_channel(channel)
+            self.go_join_channel(channel)
+            self.putcmd(u'KICK %s %s'%(channel, who['nick']))
 
     def run(self):
         self.connect()
@@ -179,9 +222,13 @@ class CBot(Thread, CConfigurable):
                     command = line[0:i]
                     arguments = line[i+1:]
                     if   command == 'PING'    : self.putcmd('PONG %s'%arguments)
-                    elif command == '322'     : self.join_channel(arguments.split(' ')[1])
+                    elif command == '322'     : self.go_join_channel(arguments.split(' ')[1])
                     elif command == '352'     : self.whoreply(arguments)
+                    elif command == 'JOIN'    : self.user_has_join_channel(prefix, arguments)
+                    elif command == 'PART'    : self.user_has_part_channel(prefix, arguments)
                     elif command == 'PRIVMSG' : self.received_message(prefix, arguments)
+                    elif command == 'MODE'    : self.user_mode_changed(prefix, arguments)
+                    elif command == 'KICK'    : self.user_has_been_kicked(prefix, arguments)
                     elif command == '001'     : self.start_robot()
                     elif command == '433'     : self.login(True)
                     #print [prefix, command, arguments]
@@ -204,7 +251,7 @@ class CBot(Thread, CConfigurable):
         for chname, chobj in self.channels.items():
             if channel == chname:
                 return
-        self.join_channel(channel)
+        self.go_join_channel(channel)
 
     def private_received(self, user, text):
         print (user['nick'], text)

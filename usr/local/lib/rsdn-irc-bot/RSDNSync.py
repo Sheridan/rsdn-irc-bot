@@ -59,7 +59,7 @@ class CRSDNSync(Thread, CConfigurable):
                                     }
             for fid in self.forums.keys():
                 forum = self.forums[fid]
-                GO.bot.join_channel(forum['sname'], u'%s :: %s ( %s )'%(forum['gname'], forum['name'], self.getForumUrlById(fid)))
+                GO.bot.go_join_channel(forum['sname'], u'%s :: %s ( %s )'%(forum['gname'], forum['name'], self.getForumUrlById(fid)))
             GO.bot.sendLog(u'RSDN. Список форумов. Закончено.')
 
     def additionalSync(self):
@@ -188,9 +188,24 @@ class CRSDNSync(Thread, CConfigurable):
             if len(newData['newRating']):
                 for rating in newData['newRating'][0]:
                     ratcount[GO.storage.updateRating(rating)] += 1
+                    target_msg = GO.storage.getMessage(rating['messageId'])
+                    from_user = GO.storage.getUser(rating['userId'])
+                    rate = rating['rate']
+                    r = ''
+                    if   rate  >  0: r = u'%d'%(rating['userRating']*rate)
+                    elif rate ==  0: r = u'-1'
+                    elif rate == -2: r = u':)'
+                    elif rate == -4: r = u'+1'
+                    GO.bot.sendRsdnNotification(u'Оценка %s сообщению `%s` от пользователя %s'%(r, GO.unicod(target_msg[4]), GO.unicod(from_user[1])))
+                    GO.bot.sendRsdnNotification(u' | '.join([
+                                          self.getMessageUrlById(rating['messageId']), 
+                                          self.getMemberUrlById(rating['userId'])
+                                        ]))
+                    
             if len(newData['newModerate']):
                 for moderate in newData['newModerate'][0]:
                     mdrcount[GO.storage.updateModerate(moderate)] += 1
+                    
             
             for mid in GO.storage.getBrokenMessages(list(self.forums.keys())):
                 if mid not in self.missedMessages:

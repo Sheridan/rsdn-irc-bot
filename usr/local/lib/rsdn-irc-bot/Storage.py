@@ -256,4 +256,30 @@ class CStorage(CConfigurable):
                 ) t
         """%(sfids, sfids))
         
+    def getTopicRating(self, mid):
+        smile      = 0
+        plus       = 0
+        minus      = 0
+        rate_num   = 0
+        rate_total = 0
+        for (userrating, rate) in self.query('select userrating, rate from rsdn_rating where messageid=%s', (mid, )):
+            if rate > 0:
+                rate_num += 1
+                rate_total += rate*userrating
+            elif rate ==  0: minus += 1
+            elif rate == -2: smile += 1
+            elif rate == -4: plus  += 1
+        return '%d(%d), +%d, -%d, %d x :)'%(rate_total, rate_num, plus, minus, smile)
+        
+    def getUser(self, uid):
+        return self.queryRow("select usernick, username, realname, homepage, wherefrom, origin, userclass, specialization from rsdn_users where id=%s", (uid, ))
+        
+    def getMessage(self, mid):
+        return self.queryRow("""
+            select topicid, parentid, userid, forumid, subject, messagename, 
+                   message, articleid, messagedate, updatedate, userrole, usertitle, 
+                   lastmoderated, closed
+            from rsdn_messages 
+            where id=%s
+            """, (mid, ))
         
