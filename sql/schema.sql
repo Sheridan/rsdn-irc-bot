@@ -4,7 +4,7 @@
 
 -- Dumped from database version 9.1.4
 -- Dumped by pg_dump version 9.1.4
--- Started on 2012-07-13 23:43:22 MSK
+-- Started on 2012-07-17 17:22:30 MSK
 
 SET statement_timeout = 0;
 SET client_encoding = 'UTF8';
@@ -13,7 +13,7 @@ SET check_function_bodies = false;
 SET client_min_messages = warning;
 
 --
--- TOC entry 2785 (class 1262 OID 16581)
+-- TOC entry 2787 (class 1262 OID 16581)
 -- Name: rsdn-irc-bot; Type: DATABASE; Schema: -; Owner: rsdn
 --
 
@@ -39,7 +39,7 @@ CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
 
 
 --
--- TOC entry 2788 (class 0 OID 0)
+-- TOC entry 2790 (class 0 OID 0)
 -- Dependencies: 171
 -- Name: EXTENSION plpgsql; Type: COMMENT; Schema: -; Owner: 
 --
@@ -73,7 +73,7 @@ ALTER TABLE public.channels_logs OWNER TO rsdn;
 
 --
 -- TOC entry 164 (class 1259 OID 16611)
--- Dependencies: 165 5
+-- Dependencies: 5 165
 -- Name: channels_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: rsdn
 --
 
@@ -88,7 +88,7 @@ CREATE SEQUENCE channels_logs_id_seq
 ALTER TABLE public.channels_logs_id_seq OWNER TO rsdn;
 
 --
--- TOC entry 2789 (class 0 OID 0)
+-- TOC entry 2791 (class 0 OID 0)
 -- Dependencies: 164
 -- Name: channels_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: rsdn
 --
@@ -114,7 +114,7 @@ ALTER TABLE public.nicknames OWNER TO rsdn;
 
 --
 -- TOC entry 162 (class 1259 OID 16599)
--- Dependencies: 5 163
+-- Dependencies: 163 5
 -- Name: nicknames_id_seq; Type: SEQUENCE; Schema: public; Owner: rsdn
 --
 
@@ -129,7 +129,7 @@ CREATE SEQUENCE nicknames_id_seq
 ALTER TABLE public.nicknames_id_seq OWNER TO rsdn;
 
 --
--- TOC entry 2790 (class 0 OID 0)
+-- TOC entry 2792 (class 0 OID 0)
 -- Dependencies: 162
 -- Name: nicknames_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: rsdn
 --
@@ -252,7 +252,7 @@ CREATE SEQUENCE rsdn_users_id_seq
 ALTER TABLE public.rsdn_users_id_seq OWNER TO rsdn;
 
 --
--- TOC entry 2791 (class 0 OID 0)
+-- TOC entry 2793 (class 0 OID 0)
 -- Dependencies: 167
 -- Name: rsdn_users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: rsdn
 --
@@ -271,7 +271,7 @@ ALTER TABLE ONLY channels_logs ALTER COLUMN id SET DEFAULT nextval('channels_log
 
 --
 -- TOC entry 2759 (class 2604 OID 16604)
--- Dependencies: 163 162 163
+-- Dependencies: 162 163 163
 -- Name: id; Type: DEFAULT; Schema: public; Owner: rsdn
 --
 
@@ -401,6 +401,24 @@ CREATE INDEX i_rsdn_rating_ids ON rsdn_rating USING btree (messageid, topicid, u
 
 
 --
+-- TOC entry 2783 (class 1259 OID 61692)
+-- Dependencies: 169
+-- Name: i_rsdn_rating_messageid; Type: INDEX; Schema: public; Owner: rsdn; Tablespace: 
+--
+
+CREATE INDEX i_rsdn_rating_messageid ON rsdn_rating USING btree (messageid);
+
+
+--
+-- TOC entry 2784 (class 1259 OID 61649)
+-- Dependencies: 169
+-- Name: i_rsdn_rating_userid; Type: INDEX; Schema: public; Owner: rsdn; Tablespace: 
+--
+
+CREATE INDEX i_rsdn_rating_userid ON rsdn_rating USING btree (userid);
+
+
+--
 -- TOC entry 2763 (class 1259 OID 20505)
 -- Dependencies: 161
 -- Name: i_rsdn_users_realname; Type: INDEX; Schema: public; Owner: rsdn; Tablespace: 
@@ -428,7 +446,7 @@ CREATE INDEX i_rsdn_users_usernick ON rsdn_users USING btree (usernick);
 
 
 --
--- TOC entry 2787 (class 0 OID 0)
+-- TOC entry 2789 (class 0 OID 0)
 -- Dependencies: 5
 -- Name: public; Type: ACL; Schema: -; Owner: postgres
 --
@@ -439,7 +457,7 @@ GRANT ALL ON SCHEMA public TO postgres;
 GRANT ALL ON SCHEMA public TO PUBLIC;
 
 
--- Completed on 2012-07-13 23:43:23 MSK
+-- Completed on 2012-07-17 17:22:31 MSK
 
 --
 -- PostgreSQL database dump complete

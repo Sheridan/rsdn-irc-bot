@@ -60,7 +60,9 @@ class CRSDNSync(Thread, CConfigurable):
                                     }
             for fid in self.forums.keys():
                 forum = self.forums[fid]
-                GO.bot.go_join_channel(forum['sname'], u'%s :: %s ( %s )'%(forum['gname'], forum['name'], self.getForumUrlById(fid)))
+                channel_name = u'#' + forum['sname']
+                GO.bot.store_channel_topic(channel_name, u'%s :: %s ( %s )'%(forum['gname'], forum['name'], self.getForumUrlById(fid)))
+                GO.bot.go_join_channel(channel_name)
             GO.bot.sendLog(u'RSDN. Список форумов. Закончено.')
 
     def additionalSync(self):
