@@ -72,14 +72,14 @@ class CBot(CConfigurable, Irc.CIrc):
             parametres = command[1:]
             if cmd in GO.public_commands.keys() and prefix in GO.public_commands[cmd]['pfx']:
                 if not GO.public_commands[cmd]['adm'] or GO.public_commands[cmd]['adm'] and self.isOperator(message.user(), message.channel()):
-                    result = getattr(self.commander, cmd)(mesage.user().nick(), message.channel().name(), parametres)
+                    result = getattr(self.commander, cmd)(message.user().nick(), message.channel().name(), parametres)
                     #print result
                     for ok, text in result:
                         if not ok:
                             text = u'Что то не так. %s'%text
                         if   prefix == '!': message.reply(text)
                         elif prefix == '@': message.user().send_message(text)
-        GO.storage.logChannelMessage(message.user.nick(), message.channel.name(), message.text(), is_robot_command)
+        GO.storage.logChannelMessage(message.user().nick(), message.channel().name(), message.text(), is_robot_command)
 
     # --------------------------------- Reactions on CIrc events -----------------------------------
     # --------------------------------- Self methods -----------------------------------------------

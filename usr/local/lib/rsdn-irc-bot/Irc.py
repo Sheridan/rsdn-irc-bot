@@ -70,7 +70,7 @@ class CIrcUsers(object):
         self.data = dict()
         
     def to_nick(self, user_nick_or_full):
-        user_nick_or_full if '!' not in user_nick_or_full else user_nick_or_full[0:user_nick_or_full.find('!')]
+        return user_nick_or_full if '!' not in user_nick_or_full else user_nick_or_full[0:user_nick_or_full.find('!')]
 
     def add(self, user_id):
         user = CIrcUser(self.irc, user_id)
@@ -85,6 +85,8 @@ class CIrcUsers(object):
         self.data.remove(self.to_nick(user_nick_or_full))
 
     def __getitem__(self, user_nick_or_full):
+        #print self.to_nick(user_nick_or_full)
+        #print self.data
         return self.data[self.to_nick(user_nick_or_full)]
 # ------------------------------------------------------------------------------
 class CIrcMessage(object):
@@ -98,17 +100,17 @@ class CIrcMessage(object):
 # ------------------------------------------------------------------------------
 class CIrcChannelMessage(CIrcMessage):
     def __init__(self, irc, text, user, channel):
-        CIrcMessage.__init__(text, user)
+        CIrcMessage.__init__(self, irc, text, user)
         self._channel = channel
     def channel(self): return self._channel
     def reply(self, text):
-        self.irc.send_channel_reply(self._channel, self.user, text)
+        self.irc.send_channel_reply(self._channel, self._user, text)
 # ------------------------------------------------------------------------------
 class CIrcPrivateMessage(CIrcMessage):
     def __init__(self, irc, text, user):
-        CIrcMessage.__init__(irc, text, user)
+        CIrcMessage.__init__(self, irc, text, user)
     def reply(self, text):
-        self.irc.send_private_message(self._user, text)
+        self._user.send_message(text)
 # ------------------------------------------------------------------------------
 class CIrc(Thread):
     def __init__(self, host, port, nick, ident, hostname, realname):
@@ -236,12 +238,12 @@ class CIrc(Thread):
         text   = arguments[arguments.find(' ')+2:]
         if target == self.me.nick():
             if 'on_private_message' in dir(self):
-                getattr(self, 'on_private_message')(CIrcPrivateMessage(text, CIrcUser(self, prefix)))
+                getattr(self, 'on_private_message')(CIrcPrivateMessage(self, text, CIrcUser(self, prefix)))
         else:
             if 'on_channel_message' in dir(self):
                 channel = self.channels[target]
                 user = channel[prefix]
-                getattr(self, 'on_channel_message')(CIrcChannelMessage(text, user, channel))
+                getattr(self, 'on_channel_message')(CIrcChannelMessage(self, text, user, channel))
 
     """ Welcome message """
     def on_001(self, prefix, arguments):
