@@ -60,9 +60,8 @@ class CRSDNSync(Thread, CConfigurable):
                                     }
             for fid in self.forums.keys():
                 forum = self.forums[fid]
-                channel_name = u'#' + forum['sname']
-                GO.bot.store_channel_topic(channel_name, u'%s :: %s ( %s )'%(forum['gname'], forum['name'], self.getForumUrlById(fid)))
-                GO.bot.go_join_channel(channel_name)
+                GO.bot.store_channel_topic(u'#%s'%forum['sname'], u'%s :: %s ( %s )'%(forum['gname'], forum['name'], self.getForumUrlById(fid)))
+                GO.bot.join_forum_channel(forum['sname'])
             GO.bot.sendLog(u'RSDN. Список форумов. Закончено.')
 
     def additionalSync(self):
@@ -175,13 +174,13 @@ class CRSDNSync(Thread, CConfigurable):
                     msgcount[GO.storage.updateRsdnMessages(message)] += 1
                     fid = message['forumId']
                     if fid:
-                        fchannel = '#%s'%self.forums[fid]['sname']
+                        forum_name = self.forums[fid]['sname']
                         text = u'`%s`. Автор: %s'%(
                                                    message['subject'], 
                                                    message['userNick'],
                                                  )
                         urls = u' | '.join([
-                                          fchannel,
+                                          forum_name,
                                           self.getForumUrlById(fid),
                                           self.getMessageUrlById(message['messageId']), 
                                           self.getMemberUrlById(message['userId'])
@@ -192,8 +191,8 @@ class CRSDNSync(Thread, CConfigurable):
                                                                                          ))
                         GO.bot.sendRsdnNotification(urls)
                         if message['parentId'] == 0:
-                            GO.bot.sendChannelNotification(fchannel, u'Новый топик %s'%text)
-                            GO.bot.sendChannelNotification(fchannel, urls)
+                            GO.bot.send_channel_notification(forum_name, u'Новый топик %s'%text)
+                            GO.bot.send_channel_notification(forum_name, urls)
                 self.mineMissedInMessages(newData['newMessages'][0])
 
             if len(newData['newRating']):

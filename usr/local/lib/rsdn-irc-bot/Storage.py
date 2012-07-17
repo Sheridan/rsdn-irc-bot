@@ -10,6 +10,8 @@ class CStorage(CConfigurable):
     def __init__(self):
         CConfigurable.__init__(self, '/etc/rsdn-irc-bot/storage.conf')
         self.connection = psycopg2.connect(database=self.config['database'], user=self.config['user'], password=self.config['password'], host=self.config['host'], port=self.config['port'])
+        self.midc = []
+        self.uidc = []
 
     def print_sql(self, sql):
         print '[-db-] %s'%re.sub(r'(\s+)', ' ', sql)
@@ -189,13 +191,21 @@ class CStorage(CConfigurable):
         return exists
 
     def isIdInDb(self, iid, iid_field_name, table):
-        return self.queryRow("SELECT %s FROM %s WHERE %s = %s"%(iid_field_name, table, iid_field_name, '%s'), (iid,)) != None
+        return self.queryRow("SELECT 1 FROM %s WHERE %s = %s"%(table, iid_field_name, '%s'), (iid,)) != None
 
     def isUserInDb(self, uid):
-        return self.isIdInDb(uid, 'id', 'rsdn_users') if uid else True
+        result = uid in self.uidc
+        if     result: return True
+        else:  result = self.isIdInDb(uid, 'id', 'rsdn_users') if uid else True
+        if     result:  self.uidc.append(uid)
+        return result
     
     def isMessageInDb(self, mid):
-        return self.isIdInDb(mid, 'id', 'rsdn_messages')
+        result = mid in self.midc
+        if     result:  return True
+        else:  result = self.isIdInDb(mid, 'id', 'rsdn_messages') if mid else True
+        if     result:  self.midc.append(mid)
+        return result
         
     def getUserIdByName(self, userName):
         return self.queryRow("SELECT id FROM rsdn_users WHERE username = %s", (userName,))

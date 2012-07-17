@@ -41,27 +41,28 @@ class CBot(CConfigurable, Irc.CIrc):
         self.auth_oper(self.config['auth']['oper']['login'], self.config['auth']['oper']['password'])
         self.join_channel(self.config['channels']['log'])
         self.join_channel(self.config['channels']['notifications'])
+        time.sleep(3)
         GO.rsdn.start()
         self.channelsListObserveTimer.start()
         self.sendLog('Online')
 
     def on_channel_in_list(self, channel):
         if self.can_i_work_with_channel(channel.name()):
-            channel.join()
+            if not channel.joined():
+                channel.join()
+            self.check_channel_topic(channel)
 
     def on_user_join_channel(self, channel, user):
         if self.isOperator(user, channel):
             user.set_mode(channel, '+o')
 
     def on_me_join_channel(self, channel):
-        if channel.name() == self.config['channels']['log']:
-            self.log_channel = channel
-        if channel.name() == self.config['channels']['notifications']:
-            self.notifications_channel = channel
         channel.set_samode('-lri')
         self.me.set_samode(channel, '+o')
-        if channel.name() in self.channel_topics.keys() and self.channel_topics[channel.name()] != channel.topic():
-            channel.set_topic(self.channel_topics[channel.name()])
+        self.check_channel_topic(channel)
+        if not self.log_channel            and channel.name() == self.config['channels']['log']:           self.log_channel           = channel
+        if not self.notifications_channel  and channel.name() == self.config['channels']['notifications']: self.notifications_channel = channel
+        
 
     def on_channel_message(self, message):
         prefix = message.text()[0]
@@ -94,29 +95,25 @@ class CBot(CConfigurable, Irc.CIrc):
         return False
 
     def store_channel_topic(self, channel, topic):
-        self.channel_topics[channel] = topic
+        self.channel_topics[channel.lower()] = topic
 
-    def go_join_channel(self, channel_name):
+    def join_forum_channel(self, forum_sname):
+        channel_name = u'#%s'%forum_sname
         if self.can_i_work_with_channel(channel_name):
             self.join_channel(channel_name)
 
     def can_i_work_with_channel(self, channel_name):
-        return not self.debug or self.debug and channel_name in self.bot_channels
+        return not self.debug or self.debug and channel_name.lower() in self.bot_channels
+        
+    def check_channel_topic(self, channel):
+        if channel.name().lower() in self.channel_topics.keys() and self.channel_topics[channel.name().lower()] != channel.topic():
+            channel.set_topic(self.channel_topics[channel.name().lower()])
+            
+    def send_channel_notification(self, forum_sname, text):
+        channel_name = u'#%s'%forum_sname
+        if self.can_i_work_with_channel(channel_name):
+            self.channels[channel_name].send_message(text)
     # --------------------------------- Self methods -----------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
 
     #def user_mode_changed(self, prefix, arguments):
     #    # :Sheridan|Work!Sheridan@5FC2A92.D42BA605.60BBCFB.IP MODE #bot.log -o RSDNServ
