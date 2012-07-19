@@ -94,9 +94,18 @@ class CIrcPrivateMessage(CIrcMessage):
         CIrcMessage.__init__(self, irc, text, user)
     def reply(self, text): self._user.send_message(text)
 # ------------------------------------------------------------------------------
+#class ThreadedRun(Thread):
+#    def __init__(self, target, *args):
+#        Thread.__init__(self)
+#        self.target = target
+#        self.args = args
+#    def run():
+#        self.target(*self.args)
+# ------------------------------------------------------------------------------
 class CIrc(Thread):
-    def __init__(self, host, port, nick, ident, hostname, realname):
+    def __init__(self, host, port, nick, ident, hostname, realname, irc_debug = False):
         Thread.__init__(self)
+        self.irc_debug = irc_debug
         self._terminate = False
         self.realname   = realname
         self.host       = host
@@ -111,7 +120,7 @@ class CIrc(Thread):
         if self.connected:
             cmd = GO.utf8(cmd)
             self.mutex.acquire()
-            print '[-c2s-] %s'%cmd
+            if self.irc_debug: print '[-c2s-] %s'%cmd
             self.sock.sendall(cmd)
             self.sock.sendall('\r\n')
             self.mutex.release()
@@ -143,7 +152,7 @@ class CIrc(Thread):
                    continue
                 if char == '\r': continue
                 if char == '\n':
-                    print '[-s2c-] %s'%line
+                    if self.irc_debug: print '[-s2c-] %s'%line
                     prefix = ''
                     command = ''
                     asrguments = ''
@@ -156,7 +165,8 @@ class CIrc(Thread):
                     command = 'on_%s'%line[0:i]
                     arguments = GO.unicod(line[i+1:])
                     if command in dir(self):
-                        getattr(self, command)(prefix, arguments)
+                        #ThreadedRun(getattr(self, command), prefix, arguments).start()
+                        Thread(target=getattr(self, command), args=(prefix, arguments)).start()
 
                     #elif command == 'MODE'    : self.user_mode_changed(prefix, arguments)
                     #elif command == 'KICK'    : self.user_has_been_kicked(prefix, arguments)
@@ -246,6 +256,19 @@ class CIrc(Thread):
     # ------------------------------------- me & IRC manage -------------------------------------
     
     # ------------------------------------- me & IRC manage -------------------------------------
+    # ------------------------------------- Tools -------------------------------------
+    def split_message(self, text, limit=200): 
+        temp = u''
+        result = []
+        for part in re.split(r"\s+", text, 0, re.UNICODE):
+            temp += u' '+part
+            if len(temp) >= limit:
+                result.append(temp)
+                temp = u''
+        if len(temp) > 0:
+            result.append(temp)
+        return result
+    # ------------------------------------- Tools -------------------------------------
     # ------------------------------------- IRC manage ------------------------------------------
     def login(self):
         self.set_nick(self.me.nick())
@@ -265,10 +288,10 @@ class CIrc(Thread):
     def set_channel_mode    (self, channel, mode      ): self.putcmd(u'MODE %s %s'       %(channel.name(), mode))
     def set_user_samode     (self, channel, user, mode): self.putcmd(u'SAMODE %s %s %s'  %(channel.name(), mode, user.nick()))
     def set_channel_samode  (self, channel, mode      ): self.putcmd(u'SAMODE %s %s'     %(channel.name(), mode))
-    def send_channel_message(self, channel, text      ): self.putcmd(u'PRIVMSG %s :%s'   %(channel.name(), text))
-    def send_channel_reply  (self, channel, user, text): self.putcmd(u'PRIVMSG %s :%s:%s'%(channel.name(), user.nick(), text))
-    def send_private_message(self, user, text         ): self.putcmd(u'PRIVMSG %s :%s'   %(user.nick(), text))
-    def send_notice         (self, user, text         ): self.putcmd(u'NOTICE %s :%s'    %(user.nick(), text))
+    def send_channel_message(self, channel, text      ): [self.putcmd(u'PRIVMSG %s :%s'   %(channel.name(), text_part)) for text_part in self.split_message(text)]
+    def send_channel_reply  (self, channel, user, text): [self.putcmd(u'PRIVMSG %s :%s:%s'%(channel.name(), user.nick(), text_part)) for text_part in self.split_message(text)]
+    def send_private_message(self, user, text         ): [self.putcmd(u'PRIVMSG %s :%s'   %(user.nick(), text_part)) for text_part in self.split_message(text)]
+    def send_notice         (self, user, text         ): [self.putcmd(u'NOTICE %s :%s'    %(user.nick(), text_part)) for text_part in self.split_message(text)]
     # ------------------------------------- IRC manage -------------------------------------------
     # ------------------------------------- checks -------------------------------------------
     def is_on_channel(self, channel): return self.channels.has(channel)

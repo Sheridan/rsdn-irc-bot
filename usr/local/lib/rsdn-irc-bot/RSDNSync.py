@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
-import sys, socket, string, os, re, time
+import sys, socket, string, os, re, time, datetime
 from threading import Thread, Lock
 from suds.client import Client
 sys.path.append(os.path.abspath('/usr/local/lib/rsdn-irc-bot/'))
@@ -29,14 +29,9 @@ class CRSDNSync(Thread, CConfigurable):
            return [0, err]
         return [1, client]
 
-    def getMessageUrlById(self, mid):
-        return u'http://www.rsdn.ru/forum/message/%d.aspx : mid %d'%(mid,mid)
-
-    def getMemberUrlById(self, uid):
-        return u'http://www.rsdn.ru/Users/%d.aspx : uid %d'%(uid,uid)
-        
-    def getForumUrlById(self, fid):
-        return u'http://rsdn.ru/forum/%s/ : fid %d'%(self.forums[fid]['sname'],fid)
+    def getMessageUrlById(self, mid): return u'http://www.rsdn.ru/forum/message/%d.aspx : mid %d'%(mid,mid)
+    def getMemberUrlById (self, uid): return u'http://www.rsdn.ru/Users/%d.aspx : uid %d'%(uid,uid)
+    def getForumUrlById  (self, fid): return u'http://rsdn.ru/forum/%s/ : fid %d'%(self.forums[fid]['sname'],fid)
 
     def syncForumsList(self):
         (ok, client) = self._client()
@@ -151,7 +146,7 @@ class CRSDNSync(Thread, CConfigurable):
             except: pass
 
     def syncForumsData(self):
-        self.additionalSync()
+        #self.additionalSync()
         GO.bot.sendLog(u'RSDN. Синхронизация. Запуск.')
         msgcount = { True: 0, False: 0 }
         mdrcount = { True: 0, False: 0 }
@@ -173,7 +168,7 @@ class CRSDNSync(Thread, CConfigurable):
                 for message in newData['newMessages'][0]:
                     msgcount[GO.storage.updateRsdnMessages(message)] += 1
                     fid = message['forumId']
-                    if fid:
+                    if fid and self.date_is_today(message['messageDate']):
                         forum_name = self.forums[fid]['sname']
                         text = u'`%s`. Автор: %s'%(
                                                    message['subject'], 
@@ -199,30 +194,37 @@ class CRSDNSync(Thread, CConfigurable):
                 GO.bot.sendLog(u'RSDN. Синхронизация. Обработка рейтинга.')
                 for rating in newData['newRating'][0]:
                     ratcount[GO.storage.updateRating(rating)] += 1
-                    target_msg = GO.storage.getMessage(rating['messageId'])
-                    from_user = GO.storage.getUser(rating['userId'])
-                    rate = rating['rate']
-                    r = ''
-                    if   rate  >  0: r = u'%d'%(rating['userRating']*rate)
-                    elif rate ==  0: r = u'-1'
-                    elif rate == -2: r = u':)'
-                    elif rate == -4: r = u'+1'
-                    GO.bot.sendRsdnNotification(u'Оценка %s сообщению `%s` от пользователя %s'%(
-                                                                                                  r, 
-                                                                                                  GO.unicod(target_msg[4]) if target_msg else u'--нет-в-бд--', 
-                                                                                                  GO.unicod(from_user[1])  if target_msg else u'--нет-в-бд--'
-                                                                                                ))
-                    GO.bot.sendRsdnNotification(u' | '.join([
-                                          self.getMessageUrlById(rating['messageId']), 
-                                          self.getMemberUrlById(rating['userId'])
-                                        ]))
+                    if self.date_is_today(rating['rateDate']):
+                        target_msg = GO.storage.getMessage(rating['messageId'])
+                        #if target_msg == None: 
+                        #    self.getTopic(rating['messageId'])
+                        #    target_msg = GO.storage.getMessage(rating['messageId'])
+                        from_user = GO.storage.getUser(rating['userId'])
+                        #if from_user == None:
+                        #    self.getUser(rating['userId'])
+                        #    from_user = GO.storage.getUser(rating['userId'])
+                        rate = rating['rate']
+                        r = ''
+                        if   rate  >  0: r = u'%d'%(rating['userRating']*rate)
+                        elif rate ==  0: r = u'-1'
+                        elif rate == -2: r = u':)'
+                        elif rate == -4: r = u'+1'
+                        GO.bot.sendRsdnNotification(u'Оценка %s сообщению `%s` от пользователя %s'%(
+                                                                                                      r, 
+                                                                                                      GO.unicod(target_msg[4]) if target_msg else u'--нет-в-бд--', 
+                                                                                                      GO.unicod(from_user[1])  if target_msg else u'--нет-в-бд--'
+                                                                                                    ))
+                        GO.bot.sendRsdnNotification(u' | '.join([
+                                              self.getMessageUrlById(rating['messageId']), 
+                                              self.getMemberUrlById(rating['userId'])
+                                            ]))
                 self.mineMissedInMessages(newData['newRating'][0])
 
             if len(newData['newModerate']):
                 GO.bot.sendLog(u'RSDN. Синхронизация. Обработка модерирования.')
                 for moderate in newData['newModerate'][0]:
                     mdrcount[GO.storage.updateModerate(moderate)] += 1
-                self.mineMissedInMessages(newData['newRating'][0])
+                self.mineMissedInMessages(newData['newModerate'][0])
 
             for mid in GO.storage.getBrokenMessages(list(self.forums.keys())):
                 if mid not in self.missedMessages:
@@ -353,6 +355,9 @@ class CRSDNSync(Thread, CConfigurable):
             if self.forums[fid]['sname'] == short_name:
                 return fid
         return None
+        
+    def date_is_today(self, date):
+        return datetime.date.today() == date.date()
 
     def stop(self):
         self.terminate = True

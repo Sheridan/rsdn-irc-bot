@@ -8,6 +8,31 @@ import GO, Commander, Timer, Irc
 #from Irc import CIrc
 from Configurable import CConfigurable
 
+# -------------------------------------------------------------
+class CBotCommand(object):
+    def __init__(self, user, command, arguments):
+        self._arguments = arguments
+        self._command   = command
+        self._user = user
+    def reply_error(self, text): self._user.send_notice(text)
+    def arguments  (self      ): return self._arguments
+    def command    (self      ): return self._command
+# -------------------------------------------------------------
+class CChannelBotCommand(CBotCommand, Irc.CIrcChannelMessage):
+    def  __init__(self, irc, text, user, channel, command, arguments):
+        CBotCommand.__init__(self, user, command, arguments)
+        Irc.CIrcChannelMessage.__init__(self, irc, text, user, channel)
+# -------------------------------------------------------------
+class CChannelToPrivateBotCommand(CChannelBotCommand):
+    def                    __init__(self, irc, text, user, channel, command, arguments):
+        CChannelBotCommand.__init__(self, irc, text, user, channel, command, arguments)
+    def reply(self, text): self.user().send_message(text)
+# -------------------------------------------------------------
+class CPrivateBotCommand(CBotCommand, Irc.CIrcPrivateMessage):
+    def  __init__(self, irc, text, user, command, arguments):
+        CBotCommand.__init__(self, user, command, arguments)
+        Irc.CIrcPrivateMessage.__init__(self, irc, text, user)
+# -------------------------------------------------------------
 class CBot(CConfigurable, Irc.CIrc):
     def __init__(self):
         CConfigurable.__init__(self, '/etc/rsdn-irc-bot/bot.conf')
@@ -17,12 +42,13 @@ class CBot(CConfigurable, Irc.CIrc):
                         self.config['auth']['nick'], 
                         self.config['auth']['ident'], 
                         self.config['auth']['hostname'], 
-                        self.config['auth']['realname'])
+                        self.config['auth']['realname'],
+                        self.config['debug']['irc'] == 'true')
         self.operators = self.config['operators']
         self.channelsListObserveTimer = Timer.CTimer(int(self.config['timers']['channels_list_observe']), self.request_channels)
         self.commander = Commander.CCommander()
         self.bot_channels = self.config['debug']['channels']+self.config['channels'].values()
-        self.debug = self.config['debug']['enable'] == 'true'
+        self.debug = self.config['debug']['bot'] == 'true'
         self.channel_topics = dict()
         self.store_channel_topic(self.config['channels']['log'], u'Лог работы робота')
         self.store_channel_topic(self.config['channels']['notifications'], u'Все сообщения о активности на RSDN')
@@ -62,7 +88,6 @@ class CBot(CConfigurable, Irc.CIrc):
         self.check_channel_topic(channel)
         if not self.log_channel            and channel.name() == self.config['channels']['log']:           self.log_channel           = channel
         if not self.notifications_channel  and channel.name() == self.config['channels']['notifications']: self.notifications_channel = channel
-        
 
     def on_channel_message(self, message):
         prefix = message.text()[0]
@@ -73,13 +98,16 @@ class CBot(CConfigurable, Irc.CIrc):
             parametres = command[1:]
             if cmd in GO.public_commands.keys() and prefix in GO.public_commands[cmd]['pfx']:
                 if not GO.public_commands[cmd]['adm'] or GO.public_commands[cmd]['adm'] and self.isOperator(message.user(), message.channel()):
-                    result = getattr(self.commander, cmd)(message.user().nick(), message.channel().name(), parametres)
+                    #print (self, message.text(), message.user().nick(), message.channel().name(), cmd, parametres)
+                    if   prefix == '!': getattr(self.commander, cmd)(CChannelBotCommand         (self, message.text(), message.user(), message.channel(), cmd, parametres))
+                    elif prefix == '@': getattr(self.commander, cmd)(CChannelToPrivateBotCommand(self, message.text(), message.user(), message.channel(), cmd, parametres))
+#                    result = getattr(self.commander, cmd)(message.user().nick(), message.channel().name(), parametres)
                     #print result
-                    for ok, text in result:
-                        if not ok:
-                            text = u'Что то не так. %s'%text
-                        if   prefix == '!': message.reply(text)
-                        elif prefix == '@': message.user().send_message(text)
+#                    for ok, text in result:
+#                        if not ok:
+#                            text = u'Что то не так. %s'%text
+#                        if   prefix == '!': message.reply(text)
+#                        elif prefix == '@': message.user().send_message(text)
         GO.storage.logChannelMessage(message.user().nick(), message.channel().name(), message.text(), is_robot_command)
 
     # --------------------------------- Reactions on CIrc events -----------------------------------

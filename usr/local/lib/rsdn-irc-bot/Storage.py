@@ -1,44 +1,58 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 import sys,socket, string, os, re, datetime
-import psycopg2
+import psycopg2, psycopg2.pool
 sys.path.append(os.path.abspath('/usr/local/lib/rsdn-irc-bot/'))
 import GO
 from Configurable import CConfigurable
+from threading import Lock
 
 class CStorage(CConfigurable):
     def __init__(self):
         CConfigurable.__init__(self, '/etc/rsdn-irc-bot/storage.conf')
-        self.connection = psycopg2.connect(database=self.config['database'], user=self.config['user'], password=self.config['password'], host=self.config['host'], port=self.config['port'])
-        self.midc = []
-        self.uidc = []
+        self.pool = psycopg2.pool.ThreadedConnectionPool(2, 10, database=self.config['database'], user=self.config['user'], password=self.config['password'], host=self.config['host'], port=self.config['port'])
+        self.debug = self.config['debug'] == 'true'
 
     def print_sql(self, sql):
-        print '[-db-] %s'%re.sub(r'(\s+)', ' ', sql)
+        if self.debug:
+            print '[-db-] %s'%re.sub(r'(\s+)', ' ', sql)
 
     def prepare(self, sql, data):
-        cursor = self.connection.cursor()
+        connection = self.pool.getconn()
+        cursor = connection.cursor()
         cursor.execute(sql, data)
-        return cursor
+        self.print_sql(cursor.query)
+        return [connection, cursor]
 
     def queryRow(self, sql, data=tuple()):
-        cursor = self.prepare(sql, data)
-        #self.print_sql(cursor.query)
-        result = cursor.fetchone()
-        cursor.close()
+        con = self.prepare(sql, data)
+        result = con[1].fetchone()
+        con[1].close()
+        self.pool.putconn(con[0])
         return result
 
     def query(self, sql, data=tuple()):
-        cursor = self.prepare(sql, data)
+        con = self.prepare(sql, data)
+        result = con[1].fetchall()
+        con[1].close()
+        self.pool.putconn(con[0])
+        return result
+
+    def execute(self, sql, data=tuple()):
+        con = self.prepare(sql, data)
+        con[0].commit()
+        con[1].close()
+        self.pool.putconn(con[0])
+
+    def callproc(self, procname, data=tuple()):
+        connection = self.pool.getconn()
+        cursor = connection.cursor()
+        cursor.callproc(procname, data)
         self.print_sql(cursor.query)
         result = cursor.fetchall()
         cursor.close()
+        self.pool.putconn(connection)
         return result
-        
-    def execute(self, sql, data=tuple()):
-        cursor = self.prepare(sql, data)
-        self.connection.commit()
-        cursor.close()
 
     def getNicknameId(self, nickname):
         sql = "SELECT id FROM nicknames WHERE nickname = %s"
@@ -75,26 +89,9 @@ class CStorage(CConfigurable):
         self.execute("update rsdn_row_versions set value=%s where name=%s", (value, name))
 
     def updateRsdnMessages(self, soap_message_info):
-        sql = ''
-        exists = self.isMessageInDb(soap_message_info['messageId'])
-        if not exists:
-            #GO.bot.sendLog("RSDN DB. Новое сообщение")
-            sql = """
-                INSERT INTO rsdn_messages(
-                    topicid, parentid, userid, forumid, subject, messagename, 
-                    message, articleid, messagedate, updatedate, userrole, usertitle, 
-                    lastmoderated, closed, id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-            """
-        else:
-            sql = """
-                UPDATE rsdn_messages
-                SET topicid=%s, parentid=%s, userid=%s, forumid=%s, subject=%s, 
-                    messagename=%s, message=%s, articleid=%s, messagedate=%s, updatedate=%s, 
-                    userrole=%s, usertitle=%s, lastmoderated=%s, closed=%s
-                WHERE id=%s;
-            """
-        self.execute(sql, (
+        return self.callproc('update_rsdn_messages',
+                         (
+                              soap_message_info['messageId'],
                               soap_message_info['topicId'],
                               soap_message_info['parentId'],
                               soap_message_info['userId'],
@@ -108,38 +105,30 @@ class CStorage(CConfigurable):
                               soap_message_info['userRole'],
                               soap_message_info['userTitle'],
                               soap_message_info['lastModerated'],
-                              soap_message_info['closed'],
-                              soap_message_info['messageId']
-                          ))
-        return exists
+                              soap_message_info['closed']
+                          ))[0][0]
 
     def updateRsdnUsers(self, soap_user_info):
-        sql = ''
-        exists = self.isUserInDb(soap_user_info['userId'])
-        if not exists:
-            #GO.bot.sendLog("RSDN DB. Новый пользователь")
-            sql = """
-                INSERT INTO rsdn_users(usernick, username, realname, homepage, wherefrom, origin, userclass, specialization, id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
-            """
-        else:
-            sql = """
-                UPDATE rsdn_users
-                SET usernick=%s, username=%s, realname=%s, homepage=%s, wherefrom=%s, origin=%s, userclass=%s, specialization=%s
-                WHERE id=%s;
-            """
-        self.execute(sql, (
+    #i_id bigint, 
+    #i_usernick character varying, 
+    #i_username character varying, 
+    #i_realname character varying, 
+    #i_homepage character varying,
+    # i_wherefrom character varying, 
+    #  i_origin character varying,
+    #   i_specialization character varying, 
+    #    i_userclass smallint
+        return self.callproc('update_rsdn_users', (
+                              soap_user_info['userId'],
                               soap_user_info['userNick'],
                               soap_user_info['userName'],
                               soap_user_info['realName'],
                               soap_user_info['homePage'],
                               soap_user_info['whereFrom'],
                               soap_user_info['origin'],
-                              soap_user_info['userClass'],
                               soap_user_info['specialization'],
-                              soap_user_info['userId']
-                          ))
-        return exists
+                              soap_user_info['userClass']
+                          ))[0][0]
 
     def updateRating(self, soap_rating):
         exists = self.queryRow("SELECT count(*) FROM rsdn_rating WHERE messageid = %s and topicid = %s and userid = %s", (soap_rating['messageId'], soap_rating['topicId'], soap_rating['userId']))[0] > 0
@@ -194,22 +183,13 @@ class CStorage(CConfigurable):
         return self.queryRow("SELECT 1 FROM %s WHERE %s = %s"%(table, iid_field_name, '%s'), (iid,)) != None
 
     def isUserInDb(self, uid):
-        result = uid in self.uidc
-        if     result: return True
-        else:  result = self.isIdInDb(uid, 'id', 'rsdn_users') if uid else True
-        if     result:  self.uidc.append(uid)
-        return result
-    
+        return self.isIdInDb(uid, 'id', 'rsdn_users') if uid else True
+
     def isMessageInDb(self, mid):
-        result = mid in self.midc
-        if     result:  return True
-        else:  result = self.isIdInDb(mid, 'id', 'rsdn_messages') if mid else True
-        if     result:  self.midc.append(mid)
-        return result
-        
+        return self.isIdInDb(mid, 'id', 'rsdn_messages') if mid else True
+
     def getUserIdByName(self, userName):
         return self.queryRow("SELECT id FROM rsdn_users WHERE username = %s", (userName,))
-        
 
     def getTodayEvents(self, channel):
         result = dict()
