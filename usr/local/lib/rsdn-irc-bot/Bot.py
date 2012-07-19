@@ -5,7 +5,6 @@ from threading import Lock
 from threading import Thread, Lock
 sys.path.append(os.path.abspath('/usr/local/lib/rsdn-irc-bot/'))
 import GO, Commander, Timer, Irc
-#from Irc import CIrc
 from Configurable import CConfigurable
 
 # -------------------------------------------------------------
@@ -98,16 +97,8 @@ class CBot(CConfigurable, Irc.CIrc):
             parametres = command[1:]
             if cmd in GO.public_commands.keys() and prefix in GO.public_commands[cmd]['pfx']:
                 if not GO.public_commands[cmd]['adm'] or GO.public_commands[cmd]['adm'] and self.isOperator(message.user(), message.channel()):
-                    #print (self, message.text(), message.user().nick(), message.channel().name(), cmd, parametres)
                     if   prefix == '!': getattr(self.commander, cmd)(CChannelBotCommand         (self, message.text(), message.user(), message.channel(), cmd, parametres))
                     elif prefix == '@': getattr(self.commander, cmd)(CChannelToPrivateBotCommand(self, message.text(), message.user(), message.channel(), cmd, parametres))
-#                    result = getattr(self.commander, cmd)(message.user().nick(), message.channel().name(), parametres)
-                    #print result
-#                    for ok, text in result:
-#                        if not ok:
-#                            text = u'Что то не так. %s'%text
-#                        if   prefix == '!': message.reply(text)
-#                        elif prefix == '@': message.user().send_message(text)
         GO.storage.logChannelMessage(message.user().nick(), message.channel().name(), message.text(), is_robot_command)
 
     # --------------------------------- Reactions on CIrc events -----------------------------------
@@ -132,11 +123,11 @@ class CBot(CConfigurable, Irc.CIrc):
 
     def can_i_work_with_channel(self, channel_name):
         return not self.debug or self.debug and channel_name.lower() in self.bot_channels
-        
+
     def check_channel_topic(self, channel):
         if channel.name().lower() in self.channel_topics.keys() and self.channel_topics[channel.name().lower()] != channel.topic():
             channel.set_topic(self.channel_topics[channel.name().lower()])
-            
+
     def send_channel_notification(self, forum_sname, text):
         channel_name = u'#%s'%forum_sname
         if self.can_i_work_with_channel(channel_name):

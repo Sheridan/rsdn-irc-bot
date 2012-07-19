@@ -89,8 +89,7 @@ class CStorage(CConfigurable):
         self.execute("update rsdn_row_versions set value=%s where name=%s", (value, name))
 
     def updateRsdnMessages(self, soap_message_info):
-        return self.callproc('update_rsdn_messages',
-                         (
+        return self.callproc('update_rsdn_messages', (
                               soap_message_info['messageId'],
                               soap_message_info['topicId'],
                               soap_message_info['parentId'],
@@ -109,15 +108,6 @@ class CStorage(CConfigurable):
                           ))[0][0]
 
     def updateRsdnUsers(self, soap_user_info):
-    #i_id bigint, 
-    #i_usernick character varying, 
-    #i_username character varying, 
-    #i_realname character varying, 
-    #i_homepage character varying,
-    # i_wherefrom character varying, 
-    #  i_origin character varying,
-    #   i_specialization character varying, 
-    #    i_userclass smallint
         return self.callproc('update_rsdn_users', (
                               soap_user_info['userId'],
                               soap_user_info['userNick'],
@@ -182,11 +172,8 @@ class CStorage(CConfigurable):
     def isIdInDb(self, iid, iid_field_name, table):
         return self.queryRow("SELECT 1 FROM %s WHERE %s = %s"%(table, iid_field_name, '%s'), (iid,)) != None
 
-    def isUserInDb(self, uid):
-        return self.isIdInDb(uid, 'id', 'rsdn_users') if uid else True
-
-    def isMessageInDb(self, mid):
-        return self.isIdInDb(mid, 'id', 'rsdn_messages') if mid else True
+    def isUserInDb   (self, uid): return self.isIdInDb(uid, 'id', 'rsdn_users'   ) if uid else True
+    def isMessageInDb(self, mid): return self.isIdInDb(mid, 'id', 'rsdn_messages') if mid else True
 
     def getUserIdByName(self, userName):
         return self.queryRow("SELECT id FROM rsdn_users WHERE username = %s", (userName,))
@@ -232,7 +219,7 @@ class CStorage(CConfigurable):
         for table in self.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"):
             result[table[0]] = self.queryRow("SELECT count(*) FROM %s"%table[0])[0]
         return result
-        
+
     def getBrokenMessages(self, fids):
         sfids = ', '.join(map(str,fids))
         return self.query("""
@@ -245,7 +232,7 @@ class CStorage(CConfigurable):
                     where not exists(select * from rsdn_messages t2 where t1.topicid=t2.id) and t1.topicid != 0 and forumid in (%s)
                 ) t
         """%(sfids, sfids))
-        
+
     def count_rating(self, data):
         smile      = 0
         plus       = 0
@@ -260,10 +247,10 @@ class CStorage(CConfigurable):
             elif rate == -2: smile += 1
             elif rate == -4: plus  += 1
         return '%d(%d), +%d, -%d, %d x :)'%(rate_total, rate_num, plus, minus, smile)
-    
+
     def getTopicRating(self, mid):
         return self.count_rating(self.query('select userrating, rate from rsdn_rating where messageid=%s', (mid, )))
-        
+
     def getUserToOtherRating(self, uid):
         return self.count_rating(self.query('select userrating, rate from rsdn_rating where userid=%s', (uid, ))) # оценки выствленные uid пользователем другим сообщениям
 
@@ -275,10 +262,10 @@ class CStorage(CConfigurable):
             where rsdn_messages.userid=%s
             """
             , (uid, ))) # оценки выствленные другими пользователями сообщениям uid пользователя
-        
+
     def getUser(self, uid):
         return self.queryRow("select usernick, username, realname, homepage, wherefrom, origin, userclass, specialization from rsdn_users where id=%s", (uid, ))
-        
+
     def getMessage(self, mid):
         return self.queryRow("""
             select topicid, parentid, userid, forumid, subject, messagename, 
@@ -287,4 +274,3 @@ class CStorage(CConfigurable):
             from rsdn_messages 
             where id=%s
             """, (mid, ))
-        

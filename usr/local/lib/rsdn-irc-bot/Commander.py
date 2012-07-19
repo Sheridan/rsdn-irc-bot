@@ -36,7 +36,7 @@ class CCommander(object):
     def demute(self, cmd): cmd.channel().set_mode('-m')
     def op    (self, cmd): cmd.user().set_mode(cmd.channel(), '+o')
     def deop  (self, cmd): cmd.user().set_mode(cmd.channel(), '-o')
-    
+
     def g(self, cmd):
         (ok, kw) = self._checkString(' '.join(cmd.arguments()))
         if ok:
@@ -66,14 +66,12 @@ class CCommander(object):
                                                                                             data['self']['date'],
                                                                                             data['self']['user'],
                                                                                             u'запрещены' if data['self']['closed'] else u'разрешены'))
-                #self.bot.sendPrivate(nickname, '---- Текст сообщения ----')
-                #for msg in data['self']['message'].split('\n'):
-                #    self.bot.sendPrivate(nickname, msg)
-                #self.bot.sendPrivate(nickname, '-------------------------')
+                cmd.reply(u'---- Текст сообщения ----')
+                cmd.reply(data['self']['message'])
+                cmd.reply(u'-------------------------')
                 cmd.reply(u'Участники: %s'%(u', '.join(['%s:%s'%(mber,cnt) for mber, cnt in data['members'].items()])))
                 cmd.reply(u'Всего сообщений в топике: %d'%data['count'])
-                rate = GO.storage.getTopicRating(mid)
-                cmd.reply(u'Оценка сообщения (из БД): %s'%rate)
+                cmd.reply(u'Оценка сообщения (из БД): %s'%GO.storage.getTopicRating(mid))
             else: cmd.reply_error(u'Сообщение не существует или ошибка сервера')
         else: cmd.reply_error(kw)
 

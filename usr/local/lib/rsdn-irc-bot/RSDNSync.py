@@ -11,13 +11,13 @@ class CRSDNSync(Thread, CConfigurable):
     def __init__(self):
         Thread.__init__(self)
         CConfigurable.__init__(self, '/etc/rsdn-irc-bot/rsdn.conf')
-        self.terminate = False
+        self.terminate          = False
         self.timerForumListSync = Timer.CTimer(int(self.config['timers']['sync_forum_list']), self.syncForumsList)
-        self.timerDataSync = Timer.CTimer(int(self.config['timers']['sync_data']), self.syncForumsData)
-        self.forumsRowVersion = 0
-        self.forums = dict()
-        self.missedMessages = []
-        self.missedMembers = []
+        self.timerDataSync      = Timer.CTimer(int(self.config['timers']['sync_data'])      , self.syncForumsData)
+        self.forumsRowVersion   = 0
+        self.forums             = dict()
+        self.missedMessages     = []
+        self.missedMembers      = []
         self.max_broken_per_sync_iteration = int(self.config['limits']['max_broken_messages_per_iteration'])
 
     def _client(self):
@@ -72,7 +72,7 @@ class CRSDNSync(Thread, CConfigurable):
             while x < 1000:
                 mids.append(mid)
                 while mid > 1 and mid in mids or GO.storage.isMessageInDb(mid):
-                    mid -= 1
+                    mid += 1
                 x += 1
             f = open('/home/rsdn/mid', 'w')
             f.write('%d'%mid)
@@ -365,8 +365,7 @@ class CRSDNSync(Thread, CConfigurable):
     def run(self):
         self.timerForumListSync.start()
         self.timerDataSync.start()
-        while not self.terminate:
-            time.sleep(1)
-        self.timerDataSync.stop()
-        self.timerForumListSync.stop()
+        while not self.terminate: time.sleep(1)
+        self.timerDataSync.stop ()
+        self.timerForumListSync.stop ()
 
