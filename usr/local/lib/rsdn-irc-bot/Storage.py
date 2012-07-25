@@ -89,6 +89,8 @@ class CStorage(CConfigurable):
         self.execute("update rsdn_row_versions set value=%s where name=%s", (value, name))
 
     def updateRsdnMessages(self, soap_message_info):
+        print soap_message_info
+        print '-------------------------------------------------------------'
         return self.callproc('update_rsdn_messages', (
                               soap_message_info['messageId'],
                               soap_message_info['topicId'],
@@ -108,6 +110,8 @@ class CStorage(CConfigurable):
                           ))[0][0]
 
     def updateRsdnUsers(self, soap_user_info):
+        print soap_user_info
+        print '-------------------------------------------------------------'
         return self.callproc('update_rsdn_users', (
                               soap_user_info['userId'],
                               soap_user_info['userNick'],

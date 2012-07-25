@@ -105,11 +105,11 @@ class CBot(CConfigurable, Irc.CIrc):
     # --------------------------------- Self methods -----------------------------------------------
     def isOperator(self, user, channel):
         for operator in self.operators['global']:
-                if re.match(operator, user.full()):
+                if re.match(operator, user.user_id()):
                     return True
         for op_channel in self.operators['channels']:
             for operator in self.operators['channels'][op_channel]:
-                if re.match(operator, user.full()):
+                if re.match(operator, user.user_id()):
                     return True
         return False
 

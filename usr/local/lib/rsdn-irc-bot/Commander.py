@@ -109,7 +109,7 @@ class CCommander(object):
             cmd.reply_error(num)
             return
         reply = []
-        print GO.storage.getTopOfChannel(cmd.channel().name(), num)
+        #print GO.storage.getTopOfChannel(cmd.channel().name(), num)
         for line in GO.storage.getTopOfChannel(cmd.channel().name(), num):
             reply.append(u'%s: %s'%line)
         return cmd.reply(u'Top%s флеймеров канала %s: %s'%(num, cmd.channel().name(), ', '.join(reply)))
