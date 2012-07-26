@@ -77,13 +77,13 @@ class CIrcUsers(object):
             self.data[user.nick()] = user
             return user
         return self.data[user.nick()]
-        
+
     def change_user_nick(self, user_id, nick):
         user = self.data[self.to_nick(user_id)]
         self.remove_user_obj(user)
         user.change_nick(nick)
         self.add_user_obj(user)
-        
+
     def remove_user_obj(self, user): 
         if user.nick() in self.data.keys():
             del self.data[user.nick()]
@@ -224,7 +224,7 @@ class CIrc(Thread):
     def on_PART(self, prefix, arguments):
         #  :Sheridan|Work!Sheridan@5FC2A92.D42BA605.60BBCFB.IP PART #bot.log :Once you know what it is you want to be true, instinct is a very useful device for enabling you to know that it is
         channel = self.channels[arguments.split(' ')[0].lower()]
-        user = self.users(prefix)
+        user = self.users[prefix]
         channel.remove_user(user)
         if 'on_user_part_channel' in dir(self):
             user = channel[prefix]
@@ -339,3 +339,7 @@ class CIrc(Thread):
     # ------------------------------------- checks -------------------------------------------
     def is_on_channel(self, channel): return self.channels.exists(channel.name())
     # ------------------------------------- checks -------------------------------------------
+    # ------------------------------------- data -------------------------------------------
+    def user   (self, nick): return self.users[nick]    if self.users.exists(nick) else None
+    def channel(self, name): return self.channels[nick] if self.channels.exists(name) else None
+    # ------------------------------------- data -------------------------------------------

@@ -19,7 +19,8 @@ public_commands = {
         'help'  : { 'pfx': '!@', 'adm': False, 'hlp': u'Помощь по командам бота', 'epl': '!help' },
         'today' : { 'pfx': '!@', 'adm': False, 'hlp': u'Дневная статистика', 'epl': u'!today' },
         'dbstat': { 'pfx': '!@', 'adm': True , 'hlp': u'Получить статистику БД', 'epl': u'!dbstat' },
-        'wiki'  : { 'pfx': '!@', 'adm': False, 'hlp': u'Запрос статьи в wikipedia', 'epl': u'!wiki <текст>' }
+        'wiki'  : { 'pfx': '!@', 'adm': False, 'hlp': u'Запрос статьи в wikipedia', 'epl': u'!wiki <текст>' },
+        'touch' : { 'pfx': '!@', 'adm': False, 'hlp': u'Позвать пользователя', 'epl': u'!touch <ник>' }
                   }
 prvate_commands = {
         'register': { 'adm': False , 'hlp': u'Зарегестрировать свой ник', 'epl': u'register <nickname> <rsdn nickname> <rsdn password>' },

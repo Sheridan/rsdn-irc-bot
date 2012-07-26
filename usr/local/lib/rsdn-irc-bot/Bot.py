@@ -16,6 +16,7 @@ class CBotCommand(object):
     def reply_error(self, text): self._user.send_notice(text)
     def arguments  (self      ): return self._arguments
     def command    (self      ): return self._command
+    def user_from  (self      ): return self._user
 # -------------------------------------------------------------
 class CChannelBotCommand(CBotCommand, Irc.CIrcChannelMessage):
     def  __init__(self, irc, text, user, channel, command, arguments):

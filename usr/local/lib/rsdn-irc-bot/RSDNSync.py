@@ -100,11 +100,11 @@ class CRSDNSync(Thread, CConfigurable):
             request.ratingRowVersion   = GO.storage.getRsdnRowVersion('ratingRowVersion')
             request.messageRowVersion  = GO.storage.getRsdnRowVersion('messageRowVersion')
             request.moderateRowVersion = GO.storage.getRsdnRowVersion('moderateRowVersion')
-            if len(self.missedMessages) < self.min_broken_per_sync_iteration:
+            if len(self.missedMessages) > self.min_broken_per_sync_iteration:
                 for mid in self.missedMessages[:self.max_broken_per_sync_iteration]:
                     if not GO.storage.isMessageInDb(mid):
                         request.breakMsgIds.int.append(mid)
-            self.missedMessages = self.missedMessages[self.max_broken_per_sync_iteration:]
+                self.missedMessages = self.missedMessages[self.max_broken_per_sync_iteration:]
             answer = client.service.GetNewData(request)
             GO.storage.setRsdnRowVersion('ratingRowVersion'  , answer['lastRatingRowVersion']  )
             GO.storage.setRsdnRowVersion('messageRowVersion' , answer['lastForumRowVersion']   )
@@ -124,9 +124,7 @@ class CRSDNSync(Thread, CConfigurable):
             result = []
             while not done:
                 request.lastRowVersion = GO.storage.getRsdnRowVersion('usersRowVersion')
-                #print request
                 answer = client.service.GetNewUsers(request)
-                #print answer
                 done = answer['lastRowVersion'] == GO.storage.getRsdnRowVersion('usersRowVersion')
                 GO.storage.setRsdnRowVersion('usersRowVersion', answer['lastRowVersion'])
                 if not done:
@@ -174,13 +172,13 @@ class CRSDNSync(Thread, CConfigurable):
                         text = u'`%s`. Автор: %s'%(
                                                    message['subject'], 
                                                    message['userNick'],
-                                                 )
+                                                  )
                         urls = u' | '.join([
-                                          forum_name,
-                                          self.getForumUrlById(fid),
-                                          self.getMessageUrlById(message['messageId']), 
-                                          self.getMemberUrlById(message['userId'])
-                                        ])
+                                              u'#%s'%forum_name,
+                                              self.getForumUrlById(fid),
+                                              self.getMessageUrlById(message['messageId']), 
+                                              self.getMemberUrlById(message['userId'])
+                                          ])
                         GO.bot.sendRsdnNotification(u'В форуме `%s` новое сообщение: %s'%(
                                                                                           self.forums[fid]['name'],
                                                                                           text
@@ -210,7 +208,6 @@ class CRSDNSync(Thread, CConfigurable):
                         elif rate ==  0: r = u'-1'
                         elif rate == -2: r = u':)'
                         elif rate == -4: r = u'+1'
-                        
                         GO.bot.sendRsdnNotification(u'Оценка %s сообщению `%s` от пользователя %s'%(
                                                                                                       r, 
                                                                                                       GO.unicod(target_msg[4]) if target_msg != None else u'--нет-в-бд--', 
@@ -228,11 +225,12 @@ class CRSDNSync(Thread, CConfigurable):
                     mdrcount[GO.storage.updateModerate(moderate)] += 1
                 #self.mineMissedInMessages(newData['newModerate'][0])
 
+            GO.bot.sendLog(u'RSDN. Синхронизация. Получение списка отсутствующих сообщений.')
             for mid in GO.storage.getBrokenMessages(list(self.forums.keys())):
                 if mid not in self.missedMessages:
                         self.missedMessages.append(mid)
             #print len(newData['newRating']), len(newData['newModerate']), len(newData['newMessages']), len(self.missedMessages)
-            if len(newData['newRating']) == 0 and len(newData['newModerate']) == 0 and len(newData['newMessages']) == 0 and len(self.missedMessages) == 0:
+            if len(newData['newRating']) == 0 and len(newData['newModerate']) == 0 and len(newData['newMessages']) == 0 and len(self.missedMessages) < self.min_broken_per_sync_iteration:
                 break
         GO.bot.sendLog(u'RSDN. Синхронизация. Собщения: принято %d, из них новых %d, обновлено %d.'%(msgcount[True]+msgcount[False], msgcount[False], msgcount[True]))
         GO.bot.sendLog(u'RSDN. Синхронизация. Оценки: принято %d, из них новых %d, обновлено %d.'%(ratcount[True]+ratcount[False], ratcount[False], ratcount[True]))
@@ -261,7 +259,7 @@ class CRSDNSync(Thread, CConfigurable):
         GO.bot.sendLog(u'RSDN. Синхронизация. Закончено.')
 
     def getUser(self, uid):
-        GO.bot.sendLog(u'RSDN. Получение пользователя по его идентификатору.')
+        GO.bot.sendLog(u'RSDN. Получение пользователя по его идентификатору (%d).'%uid)
         data = self.loadUsersByIds([uid])
         if data != None and list(data['users']):
             user = data['users'][0][0]
@@ -349,7 +347,6 @@ class CRSDNSync(Thread, CConfigurable):
             GO.bot.sendLog(u'RSDN. Получение топиков. Закончено.')
         else:
             results.append({'exists': False})
-            
         return results
 
     def getForumId(self, short_name):
@@ -357,7 +354,7 @@ class CRSDNSync(Thread, CConfigurable):
             if self.forums[fid]['sname'] == short_name:
                 return fid
         return None
-        
+
     def date_is_today(self, date):
         return datetime.date.today() == date.date()
 

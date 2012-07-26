@@ -178,3 +178,15 @@ class CCommander(object):
                 cmd.reply(u'%s (%s)'%(i.getElementsByTagName('Description')[0].firstChild.data.strip(), i.getElementsByTagName('Url')[0].firstChild.data.strip()))
         else:
             cmd.reply_error(kw)
+
+    def touch(self, cmd):
+        (ok, uid) = self._checkString(''.join(cmd.arguments()))
+        if ok:
+            nick = ''.join(cmd.arguments())
+            user = GO.bot.user(nick)
+            if user:
+                user.send_message(u'Вас ищет %s'%cmd.user_from().nick())
+            else:
+                cmd.reply_error(u'Пользователь %s не найден'%nick)
+        else:
+            cmd.reply_error(uid)
