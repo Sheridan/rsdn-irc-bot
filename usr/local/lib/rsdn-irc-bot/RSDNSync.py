@@ -200,12 +200,10 @@ class CRSDNSync(Thread, CConfigurable):
                         if target_msg == None: 
                             self.getTopic(rating['messageId'])
                             target_msg = GO.storage.getMessage(rating['messageId'])
-                            print target_msg
                         from_user = GO.storage.getUser(rating['userId'])
                         if from_user == None:
                             self.getUser(rating['userId'])
                             from_user = GO.storage.getUser(rating['userId'])
-                            print from_user
                         rate = rating['rate']
                         r = ''
                         if   rate  >  0: r = u'%d'%(rating['userRating']*rate)

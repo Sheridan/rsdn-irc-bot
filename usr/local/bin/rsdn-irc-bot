@@ -5,6 +5,7 @@ sys.path.append(os.path.abspath('/usr/local/lib/rsdn-irc-bot/'))
 import GO
 
 def termHSignal(signum, frame):
+    print "Stopping..."
     GO.bot.stop()
 
 signal.signal(signal.SIGINT, termHSignal)

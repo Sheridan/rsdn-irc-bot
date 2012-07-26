@@ -10,8 +10,16 @@ from threading import Lock
 class CStorage(CConfigurable):
     def __init__(self):
         CConfigurable.__init__(self, '/etc/rsdn-irc-bot/storage.conf')
-        self.pool = psycopg2.pool.ThreadedConnectionPool(2, 10, database=self.config['database'], user=self.config['user'], password=self.config['password'], host=self.config['host'], port=self.config['port'])
+        self.pool = psycopg2.pool.ThreadedConnectionPool(3, 20, 
+                                                         database = self.config['database'], 
+                                                         user     = self.config['user'], 
+                                                         password = self.config['password'], 
+                                                         host     = self.config['host'], 
+                                                         port     = self.config['port'])
         self.debug = self.config['debug'] == 'true'
+
+    def stop(self):
+        self.pool.closeall()
 
     def print_sql(self, sql):
         if self.debug:
@@ -50,6 +58,7 @@ class CStorage(CConfigurable):
         cursor.callproc(procname, data)
         self.print_sql(cursor.query)
         result = cursor.fetchall()
+        connection.commit()
         cursor.close()
         self.pool.putconn(connection)
         return result
@@ -89,8 +98,8 @@ class CStorage(CConfigurable):
         self.execute("update rsdn_row_versions set value=%s where name=%s", (value, name))
 
     def updateRsdnMessages(self, soap_message_info):
-        print soap_message_info
-        print '-------------------------------------------------------------'
+        #print soap_message_info
+        #print '-------------------------------------------------------------'
         return self.callproc('update_rsdn_messages', (
                               soap_message_info['messageId'],
                               soap_message_info['topicId'],
@@ -110,8 +119,8 @@ class CStorage(CConfigurable):
                           ))[0][0]
 
     def updateRsdnUsers(self, soap_user_info):
-        print soap_user_info
-        print '-------------------------------------------------------------'
+        #print soap_user_info
+        #print '-------------------------------------------------------------'
         return self.callproc('update_rsdn_users', (
                               soap_user_info['userId'],
                               soap_user_info['userNick'],

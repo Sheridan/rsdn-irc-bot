@@ -164,8 +164,10 @@ class CBot(CConfigurable, Irc.CIrc):
     def stop(self):
         self.sendLog('Offline')
         self.channelsListObserveTimer.stop()
-        GO.rsdn.stop()
+        self.quit()
         self.terminate()
+        GO.rsdn.stop()
+        GO.storage.stop()
 
     def sendRsdnNotification(self, text):
         if self.notifications_channel != None and self.notifications_channel.joined():

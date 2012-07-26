@@ -28,19 +28,19 @@ class CIrcChannel(object):
     def join             (self        ): self.irc.join_channel(self._name)
     def change_topic     (self, topic ): self._topic = topic
     def set_joined       (self, joined): self._joined = joined
+    def users            (self        ): return self.users.users()
 # ------------------------------------------------------------------------------
 class CIrcChannels(object):
     def __init__(self, irc):
         self.irc  = irc
         self.data = dict()
     def add(self, name, topic):
-        if not self.has_name(name):
+        if not self.exists(name):
             self.data[name] = CIrcChannel(self.irc, name, topic)
         return self.data[name]
     def remove     (self, name   ): del self.data[name]
     def __getitem__(self, name   ): return self.data[name]
-    def has        (self, channel): return self.has_name(channel.name())
-    def has_name   (self, channel): return channel in self.data.keys()
+    def exists     (self, name   ): return name in self.data.keys()
     def channels   (self         ): return self.data.values()
 # ------------------------------------------------------------------------------
 class CIrcUser(object):
@@ -48,21 +48,21 @@ class CIrcUser(object):
         self.irc    = irc
         self.rename(user_id)
 
-    def rename      (self,          user_id):
+    def rename(self, user_id):
         self._user_id  = user_id
-        self._nick  = self._user_id[                     0:self._user_id.find('!')]
+        self._nick  = self._user_id[                        0:self._user_id.find('!')]
         self._ident = self._user_id[self._user_id.find('!')+1:self._user_id.find('@')]
-        self._host  = self._user_id[self._user_id.find('@')+1:                   ]
+        self._host  = self._user_id[self._user_id.find('@')+1:                       ]
 
     def send_message(self,          text): self.irc.send_private_message(self, text)
     def send_notice (self,          text): self.irc.send_notice(self, text)
     def set_mode    (self, channel, mode): self.irc.set_user_mode(channel, self, mode)
     def set_samode  (self, channel, mode): self.irc.set_user_samode(channel, self, mode)
-    def change_nick (self, nick): self._nick = nick
-    def nick (self): return self._nick
-    def ident(self): return self._ident
-    def host (self): return self._host
-    def user_id (self): return self._user_id
+    def change_nick (self,          nick): self._nick = nick
+    def nick        (self               ): return self._nick
+    def ident       (self               ): return self._ident
+    def host        (self               ): return self._host
+    def user_id     (self               ): return self._user_id
 # ------------------------------------------------------------------------------
 class CIrcUsers(object):
     def __init__(self, irc):
@@ -83,12 +83,17 @@ class CIrcUsers(object):
         self.remove_user_obj(user)
         user.change_nick(nick)
         self.add_user_obj(user)
+        
+    def remove_user_obj(self, user): 
+        if user.nick() in self.data.keys():
+            del self.data[user.nick()]
 
     def add_by_parts   (self, nick, ident, host   ): return self.add('%s!%s@%s'%(nick,ident,host))
     def add_user_obj   (self, user                ):        self.data[user.nick()] = user
-    def remove_user_obj(self, user                ): del    self.data[user.nick()]
-    def remove         (self, user_nick_or_user_id): del    self.data[self.to_nick(user_nick_or_user_id)]
+    def remove         (self, user_nick_or_user_id):        self.remove_user_obj(self.data[self.to_nick(user_nick_or_user_id)])
     def __getitem__    (self, user_nick_or_user_id): return self.data[self.to_nick(user_nick_or_user_id)]
+    def exists         (self, user_nick_or_user_id): return self.to_nick(user_nick_or_user_id) in self.data.keys()
+    def users          (self                      ): return self.data.values()
 # ------------------------------------------------------------------------------
 class CIrcMessage(object):
     def __init__(self, irc, text, user):
@@ -140,7 +145,7 @@ class CIrc(Thread):
         self.connected = True
 
     def disconnect(self):
-        self.putcmd(u'QUIT')
+        self.quit()
         self.connected = False
         self.sock.close()
 
@@ -192,9 +197,9 @@ class CIrc(Thread):
     """ Users, who reply on WHO """
     def on_352(self, prefix, arguments):
     #  RSDNServ #флэйм tmp_acnt rsdn-454FD1D1.dynamic.avangarddsl.ru irc.rsdn.ru scumware[] H@ :0 Философ
-        data = arguments.split(' ')
+        data    = arguments.split(' ')
         channel = self.channels[data[1].lower()]
-        user = self.users.add_by_parts(data[5], data[2], data[3])
+        user    = self.users.add_by_parts(data[5], data[2], data[3])
         channel.add_user(user)
         if 'on_user_join_channel' in dir(self):
             getattr(self, 'on_user_join_channel')(channel, user)
@@ -204,13 +209,13 @@ class CIrc(Thread):
     # :Sheridan|Work!Sheridan@5FC2A92.D42BA605.60BBCFB.IP JOIN :#unix
         channel_name = arguments[1:].lower()
         if prefix[0:prefix.find('!')] == self.me.nick():
-            channel = self.channels.add(channel_name, '') if not self.channels.has_name(channel_name) else self.channels[channel_name]
+            channel = self.channels.add(channel_name, '')
             channel.set_joined(True)
             if 'on_me_join_channel' in dir(self):
                 getattr(self, 'on_me_join_channel')(channel)
         else:
             channel = self.channels[channel_name]
-            user = self.users[prefix]
+            user    = self.users.add(prefix)
             channel.add_user(user)
             if 'on_user_join_channel' in dir(self):
                 getattr(self, 'on_user_join_channel')(channel, user)
@@ -225,6 +230,16 @@ class CIrc(Thread):
             user = channel[prefix]
             getattr(self, 'on_user_part_channel')(channel, user)
 
+    """ User QUIT irc """
+    def on_QUIT(self, prefix, arguments):
+        #  :ssssssss!Sheridan@5FC2A92.D42BA605.60BBCFB.IP QUIT :Quit: Konversation terminated!
+        user = self.users[prefix]
+        self.users.remove_user_obj(user)
+        for channel in self.channels.channels():
+            channel.remove_user(user)
+        if 'on_user_quit' in dir(self):
+            getattr(self, 'on_user_quit')(user)
+
     """user changed nick"""
     def on_NICK(self, prefix, arguments):
         # :o_O!o_O@138A86B6.14305381.3F6D259C.IP NICK :^_^
@@ -234,6 +249,17 @@ class CIrc(Thread):
         user = self.users[new_nick]
         if 'on_user_nick_change' in dir(self):
             getattr(self, 'on_user_nick_change')(user, old_nick, new_nick)
+
+    """ User kicked """
+    def on_KICK(self, prefix, arguments):
+        # :Sheridan|Work!Sheridan@5FC2A92.D42BA605.60BBCFB.IP KICK #test Sheridan|Home :why
+        user_who_kick = self.users[prefix]
+        channel       = self.channels[arguments.split(' ')[0].lower()]
+        kicked_user   = self.users[arguments.split(' ')[1]]
+        why           = arguments.split(' ')[2][1:]
+        channel.remove_user(kicked_user)
+        if 'on_user_kicked' in dir(self):
+            getattr(self, 'on_user_kicked')(channel, user_who_kick, kicked_user, why)
 
     """ Message received """
     def on_PRIVMSG(self, prefix, arguments):
@@ -295,6 +321,7 @@ class CIrc(Thread):
         self.putcmd(u'WHO %s' %channel)
 
     def request_channels    (self                     ):  self.putcmd(u'LIST')
+    def quit                (self                     ):  self.putcmd(u'QUIT')
     def kill                (self, nick, text         ):  self.putcmd(u'KILL %s %s'       %(nick, text))
     def set_nick            (self, nick               ):  self.putcmd(u'NICK %s'          % nick)
     def set_user            (self, ident, host, real  ):  self.putcmd(u'USER %s 0 %s :%s' %(ident, host, real))
@@ -310,5 +337,5 @@ class CIrc(Thread):
     def send_notice         (self, user, text         ): [self.putcmd(u'NOTICE %s :%s'    %(user.nick(), text_part))                 for text_part in self.split_message(text)]
     # ------------------------------------- IRC manage -------------------------------------------
     # ------------------------------------- checks -------------------------------------------
-    def is_on_channel(self, channel): return self.channels.has(channel)
+    def is_on_channel(self, channel): return self.channels.exists(channel.name())
     # ------------------------------------- checks -------------------------------------------
