@@ -10,7 +10,7 @@ class CBotCommand(object):
     def __init__(self, user, command, arguments):
         self._arguments = arguments
         self._command   = command
-        self._user = user
+        self._user      = user
 
     def reply_error(self, text): self._user.send_notice(text)
     def arguments  (self      ): return self._arguments

@@ -286,3 +286,18 @@ class CStorage(CConfigurable):
             from rsdn_messages 
             where id=%s
             """, (mid, ))
+        
+    def get_channel_log(self, channel_name, date):
+        return self.query("""
+            select
+                 channels_logs.date_and_time::time as t, 
+                 nicknames.nickname,
+                 channels_logs.message
+            from channels_logs
+            left join nicknames on nicknames.id = channels_logs.nickname_id
+            where 
+                channels_logs.channel = %s and 
+                channels_logs.is_bot_command = false and
+                date(channels_logs.date_and_time) = %s
+            order by t
+        """, (channel_name, date))

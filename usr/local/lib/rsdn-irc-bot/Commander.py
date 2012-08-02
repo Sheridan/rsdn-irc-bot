@@ -7,7 +7,7 @@ import GO
 
 class CCommander(object):
 
-    def _chek_for_int(self, val, minimum, maximum):
+    def _check_for_int(self, val, minimum, maximum):
         if val == None or val == '':
             return [0, u'Отсутствует параметр, почитайте #help']
         try:
@@ -20,17 +20,51 @@ class CCommander(object):
             return [0, u'Число слишком большое']
         return [1, num]
 
-    def _chek_for_flags(self, val, flags):
+    def _check_for_flags(self, val, flags):
         val = val.strip()
         for flag in val:
             if flag not in flags:
                 return [0, u'Неизвестный флаг `%s`, почитайте #help'%flag]
         return [1, val]
 
-    def _chek_for_string(self, val):
+    def _check_for_string(self, val):
         if val == None or val == '':
             return [0, u'Отсутствует параметр, почитайте #help']
         return [1, val]
+        
+    def _check_for_date(self, val):
+        (ok, val) = self._check_for_string(val)
+        if ok:
+            for delimiter in ['.', ':', '/' , '-', '\\', ' ']:
+                if delimiter in val:
+                    parts = val.split(delimiter)
+                    if len(parts) == 3:
+                        year  = 0
+                        month = 0
+                        day   = 0
+                        (ok, part) = self._check_for_int(parts[0], 1, 31)
+                        if ok: day = part
+                        else: 
+                            (ok, part) = self._check_for_int(parts[0], 0, 3000)
+                            if ok:
+                                if len(parts[0]) == 2 or len(parts[0]) == 4: year = part
+                                else: return [0, u'Не похоже на дату']
+                            else: return [0, u'Не похоже на дату']
+                        (ok, part) = self._check_for_int(parts[1], 1, 12)
+                        if ok: month = part
+                        else: return [0, u'Не похоже на дату']
+                        (ok, part) = self._check_for_int(parts[2], 1, 31)
+                        if ok:
+                            if day > 0: year = part
+                            else: day = part
+                        else: return [0, u'Не похоже на дату']
+                        return [1, u'%d.%d.%d'%(day, month, year)]
+                    else:
+                        return [0, u'Не похоже на дату']
+                else:
+                    return [0, u'Не похоже на дату']
+        else:
+            return [0, val]
 
     def mute  (self, cmd): cmd.channel().set_mode('+m')
     def demute(self, cmd): cmd.channel().set_mode('-m')
@@ -38,7 +72,7 @@ class CCommander(object):
     def deop  (self, cmd): cmd.user().set_mode(cmd.channel(), '-o')
 
     def g(self, cmd):
-        (ok, kw) = self._chek_for_string(' '.join(cmd.arguments()))
+        (ok, kw) = self._check_for_string(' '.join(cmd.arguments()))
         if ok:
             kw = '%20'.join(kw.split(' '))
             engines = [u'http://img.meta.ua/rsdnsearch/?q=%s',
@@ -50,7 +84,7 @@ class CCommander(object):
         else: cmd.reply_error(kw)
 
     def mid(self, cmd):
-        (ok, mid) = self._chek_for_int(''.join(cmd.arguments()), 1, 2147483646)
+        (ok, mid) = self._check_for_int(''.join(cmd.arguments()), 1, 2147483646)
         if ok:
             data = GO.rsdn.get_rsdn_topic(mid)
             if data['exists']:
@@ -76,9 +110,9 @@ class CCommander(object):
         else: cmd.reply_error(cmd)
 
     def uid(self, cmd):
-        (ok, uid) = self._chek_for_int(''.join(cmd.arguments()), 1, 2147483646)
+        (ok, uid) = self._check_for_int(''.join(cmd.arguments()), 1, 2147483646)
         if not ok:
-            (ok, uid) = self._chek_for_string(''.join(cmd.arguments()))
+            (ok, uid) = self._check_for_string(''.join(cmd.arguments()))
             if not ok: 
                 cmd.reply_error(uid)
                 return
@@ -104,7 +138,7 @@ class CCommander(object):
         else: cmd.reply_error(u'Пользователя не существует или ошибка сервера')
 
     def top(self, cmd):
-        (ok, num) = self._chek_for_int(''.join(cmd.arguments()), 2, 30)
+        (ok, num) = self._check_for_int(''.join(cmd.arguments()), 2, 30)
         if not ok: 
             cmd.reply_error(num)
             return
@@ -132,11 +166,11 @@ class CCommander(object):
             cmd.reply_error(u'Пропущен один из параметров')
             return
         (flags, length) = cmd.arguments()[0:2]
-        (ok, length) = self._chek_for_int(length, 3, 64)
+        (ok, length) = self._check_for_int(length, 3, 64)
         if not ok: 
             cmd.reply_error(length)
             return
-        (ok, flags) = self._chek_for_flags(flags, 'aAdps')
+        (ok, flags) = self._check_for_flags(flags, 'aAdps')
         if not ok: 
             cmd.reply_error(flags)
             return
@@ -159,7 +193,7 @@ class CCommander(object):
             cmd.reply(u'Количество записей в таблице %s: %d'%(table, stat[table]))
 
     def wiki(self, cmd):
-        (ok, kw) = self._chek_for_string('%20'.join(cmd.arguments()))
+        (ok, kw) = self._check_for_string('%20'.join(cmd.arguments()))
         if ok:
             downloaded = urllib2.urlopen('http://ru.wikipedia.org/w/api.php?format=xml&action=opensearch&search=%s'%GO.utf8(kw))
             dom = parseString(downloaded.read())
@@ -180,9 +214,9 @@ class CCommander(object):
             cmd.reply_error(kw)
 
     def touch(self, cmd):
-        (ok, uid) = self._chek_for_string(''.join(cmd.arguments()))
+        (ok, uid) = self._check_for_string(u''.join(cmd.arguments()))
         if ok:
-            nick = ''.join(cmd.arguments())
+            nick = u''.join(cmd.arguments())
             user = GO.bot.user(nick)
             if user:
                 user.send_message(u'Вас ищет %s'%cmd.user_from().nick())
@@ -190,3 +224,16 @@ class CCommander(object):
                 cmd.reply_error(u'Пользователь %s не найден'%nick)
         else:
             cmd.reply_error(uid)
+
+    def history(self, cmd):
+        (ok, date) = self._check_for_date(''.join(cmd.arguments()))
+        if ok:
+            exists = False
+            for chan_message in GO.storage.get_channel_log(cmd.channel().name(), date):
+                cmd.reply(u'%s [%s] %s: %s'%(cmd.channel().name(), chan_message[0].strftime('%H:%M:%S'), GO.unicod(chan_message[1]), GO.unicod(chan_message[2])))
+                exists = True
+            if not exists:
+                cmd.reply(u'За данную дату сообщения на канале %s отсутствуют'%cmd.channel().name())
+        else:
+            cmd.reply_error(date)
+        
