@@ -111,7 +111,7 @@ class CCommander(object):
         reply = []
         #print GO.storage.get_channel_top(cmd.channel().name(), num)
         for line in GO.storage.get_channel_top(cmd.channel().name(), num):
-            reply.append(u'%s: %s'%line)
+            reply.append(u'%s:%s'%line)
         return cmd.reply(u'Top%s флеймеров канала %s: %s'%(num, cmd.channel().name(), ', '.join(reply)))
 
     def help(self, cmd):

@@ -233,7 +233,7 @@ class CStorage(CConfigurable):
         return result
 
     def get_broken_messages(self, fids):
-        sfids = ', '.join(map(str,fids))
+        sfids = ', '.join(map(str, fids))
         return self.query("""
             select i from 
                 (
