@@ -1,11 +1,10 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
-import sys,socket, string, os, re, datetime
+import sys, os, re, datetime
 import psycopg2, psycopg2.pool
 sys.path.append(os.path.abspath('/usr/local/lib/rsdn-irc-bot/'))
 import GO
 from Configurable import CConfigurable
-from threading import Lock
 
 class CStorage(CConfigurable):
     def __init__(self):
@@ -32,7 +31,7 @@ class CStorage(CConfigurable):
         self.print_sql(cursor.query)
         return [connection, cursor]
 
-    def queryRow(self, sql, data=tuple()):
+    def query_row(self, sql, data=tuple()):
         con = self.prepare(sql, data)
         result = con[1].fetchone()
         con[1].close()
@@ -63,20 +62,20 @@ class CStorage(CConfigurable):
         self.pool.putconn(connection)
         return result
 
-    def getNicknameId(self, nickname):
+    def get_irc_nickname_id(self, nickname):
         sql = "SELECT id FROM nicknames WHERE nickname = %s"
-        uid = self.queryRow(sql, (nickname,))
+        uid = self.query_row(sql, (nickname,))
         if uid == None:
             self.execute("INSERT INTO nicknames (nickname) VALUES (%s)", (nickname,))
-            uid = self.queryRow(sql, (nickname,))
+            uid = self.query_row(sql, (nickname,))
         return uid[0]
 
-    def logChannelMessage(self, nickname, channel, message, is_bot_command):
-        nickname_id = self.getNicknameId(nickname)
+    def store_channel_message(self, nickname, channel, message, is_bot_command):
+        nickname_id = self.get_irc_nickname_id(nickname)
         self.execute("INSERT INTO channels_logs (nickname_id, channel, message, is_bot_command) VALUES (%s, %s, %s, %s)", (nickname_id, channel, message, is_bot_command))
         self.execute("update nicknames set last_seen = %s", (datetime.datetime.now(),))
 
-    def getTopOfChannel(self, channel, num):
+    def get_channel_top(self, channel, num):
         return self.query("""
             select nicknames.nickname, count(channels_logs.nickname_id) from channels_logs
             left join nicknames on nicknames.id=channels_logs.nickname_id
@@ -86,18 +85,18 @@ class CStorage(CConfigurable):
             limit %s
         """, (channel, num))
 
-    def getRsdnRowVersion(self, name):
+    def get_rsdn_sync_row_version(self, name):
         sql = "SELECT value FROM rsdn_row_versions WHERE name = %s"
-        rid = self.queryRow(sql, (name,))
+        rid = self.query_row(sql, (name,))
         if rid == None:
             self.execute("INSERT INTO rsdn_row_versions (name, value) VALUES (%s, %s)", (name, ''))
-            rid = self.queryRow(sql, (name,))
+            rid = self.query_row(sql, (name,))
         return rid[0]
 
-    def setRsdnRowVersion(self, name, value):
+    def set_rsdn_sync_row_version(self, name, value):
         self.execute("update rsdn_row_versions set value=%s where name=%s", (value, name))
 
-    def updateRsdnMessages(self, soap_message_info):
+    def update_rsdn_messages(self, soap_message_info):
         #print soap_message_info
         #print '-------------------------------------------------------------'
         return self.callproc('update_rsdn_messages', (
@@ -118,7 +117,7 @@ class CStorage(CConfigurable):
                               soap_message_info['closed']
                           ))[0][0]
 
-    def updateRsdnUsers(self, soap_user_info):
+    def update_rsdn_members(self, soap_user_info):
         #print soap_user_info
         #print '-------------------------------------------------------------'
         return self.callproc('update_rsdn_users', (
@@ -133,11 +132,11 @@ class CStorage(CConfigurable):
                               soap_user_info['userClass']
                           ))[0][0]
 
-    def updateRating(self, soap_rating):
-        exists = self.queryRow("SELECT count(*) FROM rsdn_rating WHERE messageid = %s and topicid = %s and userid = %s", (soap_rating['messageId'], soap_rating['topicId'], soap_rating['userId']))[0] > 0
+    def update_rsdn_rating(self, soap_rating):
+        exists = self.query_row("SELECT count(*) FROM rsdn_rating WHERE messageid = %s and topicid = %s and userid = %s", (soap_rating['messageId'], soap_rating['topicId'], soap_rating['userId']))[0] > 0
         sql = ''
         if not exists:
-            #GO.bot.sendLog("RSDN DB. Новая оценка")
+            #GO.bot.send_channel_log("RSDN DB. Новая оценка")
             sql = """
                 INSERT INTO rsdn_rating(userrating, rate, ratedate, messageid, topicid, userid)
                 VALUES (%s, %s, %s, %s, %s, %s);
@@ -158,11 +157,11 @@ class CStorage(CConfigurable):
                           ))
         return exists
 
-    def updateModerate(self, soap_moderate):
-        exists = self.queryRow("SELECT count(*) FROM rsdn_moderate WHERE messageid=%s and topicid=%s and userid=%s and forumid=%s", (soap_moderate['messageId'], soap_moderate['topicId'], soap_moderate['userId'], soap_moderate['forumId']))[0] > 0
+    def update_rsdn_moderate(self, soap_moderate):
+        exists = self.query_row("SELECT count(*) FROM rsdn_moderate WHERE messageid=%s and topicid=%s and userid=%s and forumid=%s", (soap_moderate['messageId'], soap_moderate['topicId'], soap_moderate['userId'], soap_moderate['forumId']))[0] > 0
         sql = ''
         if not exists:
-            #GO.bot.sendLog("RSDN DB. Новая отметка модерирования")
+            #GO.bot.send_channel_log("RSDN DB. Новая отметка модерирования")
             sql = """
                 INSERT INTO rsdn_moderate(crerate, messageid, topicid, userid, forumid)
                 VALUES (%s, %s, %s, %s, %s);
@@ -182,29 +181,29 @@ class CStorage(CConfigurable):
                           ))
         return exists
 
-    def isIdInDb(self, iid, iid_field_name, table):
-        return self.queryRow("SELECT 1 FROM %s WHERE %s = %s"%(table, iid_field_name, '%s'), (iid,)) != None
+    def record_into_db(self, iid, iid_field_name, table):
+        return self.query_row("SELECT 1 FROM %s WHERE %s = %s"%(table, iid_field_name, '%s'), (iid,)) != None
 
-    def isUserInDb   (self, uid): return self.isIdInDb(uid, 'id', 'rsdn_users'   ) if uid else True
-    def isMessageInDb(self, mid): return self.isIdInDb(mid, 'id', 'rsdn_messages') if mid else True
+    def is_rsdn_member_into_db (self, uid): return self.record_into_db(uid, 'id', 'rsdn_users'   ) if uid else True
+    def is_rsdn_message_into_db(self, mid): return self.record_into_db(mid, 'id', 'rsdn_messages') if mid else True
 
-    def getUserIdByName(self, userName):
-        return self.queryRow("SELECT id FROM rsdn_users WHERE username = %s", (userName,))
+    def get_rsdn_member_id_by_name(self, userName):
+        return self.query_row("SELECT id FROM rsdn_users WHERE username = %s", (userName,))
 
-    def getTodayEvents(self, channel):
+    def get_today_events(self, channel):
         result = dict()
-        result['ch_msgs'] = self.queryRow("SELECT count(id) FROM channels_logs WHERE date(date_and_time) = date(now()) and is_bot_command='false' and channel=%s", (channel, ))[0]
-        result['ch_bot']  = self.queryRow("SELECT count(id) FROM channels_logs WHERE date(date_and_time) = date(now()) and is_bot_command='true' and channel=%s", (channel, ))[0]
-        fid = GO.rsdn.getForumId(channel[1:].lower())
+        result['ch_msgs'] = self.query_row("SELECT count(id) FROM channels_logs WHERE date(date_and_time) = date(now()) and is_bot_command='false' and channel=%s", (channel, ))[0]
+        result['ch_bot']  = self.query_row("SELECT count(id) FROM channels_logs WHERE date(date_and_time) = date(now()) and is_bot_command='true' and channel=%s", (channel, ))[0]
+        fid = GO.rsdn.get_forum_id(channel[1:].lower())
         if fid:
-            result['f_msgs'] = self.queryRow("SELECT count(id) FROM rsdn_messages WHERE date(messagedate) = date(now()) and forumid=%s", (fid, ))[0]
+            result['f_msgs'] = self.query_row("SELECT count(id) FROM rsdn_messages WHERE date(messagedate) = date(now()) and forumid=%s", (fid, ))[0]
         else:
             result['f_msgs'] = u'Неприменимо'
         return result
 
-    def getUserStats(self, uid):
+    def get_rsdn_member_stats(self, uid):
         result = dict()
-        result['f_msgs'] = self.queryRow("select count(id) from rsdn_messages where userid=%s", (uid, ))[0]
+        result['f_msgs'] = self.query_row("select count(id) from rsdn_messages where userid=%s", (uid, ))[0]
         sql = """
             select rsdn_users.username, count(rsdn_messages.id) 
             from rsdn_messages
@@ -225,15 +224,15 @@ class CStorage(CConfigurable):
             limit 10
         """
         result['t10_u2o'] = ', '.join(['%s:%s'%(mber,cnt) for mber, cnt in self.query(sql, (uid, ))])
-        return result;
-
-    def getDBStat(self):
-        result = dict()
-        for table in self.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"):
-            result[table[0]] = self.queryRow("SELECT count(*) FROM %s"%table[0])[0]
         return result
 
-    def getBrokenMessages(self, fids):
+    def get_db_stats(self):
+        result = dict()
+        for table in self.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"):
+            result[table[0]] = self.query_row("SELECT count(*) FROM %s"%table[0])[0]
+        return result
+
+    def get_broken_messages(self, fids):
         sfids = ', '.join(map(str,fids))
         return self.query("""
             select i from 
@@ -261,13 +260,13 @@ class CStorage(CConfigurable):
             elif rate == -4: plus  += 1
         return '%d(%d), +%d, -%d, %d x :)'%(rate_total, rate_num, plus, minus, smile)
 
-    def getTopicRating(self, mid):
+    def get_rsdn_topic_rating(self, mid):
         return self.count_rating(self.query('select userrating, rate from rsdn_rating where messageid=%s', (mid, )))
 
-    def getUserToOtherRating(self, uid):
+    def get_rsdn_member_rate_others(self, uid):
         return self.count_rating(self.query('select userrating, rate from rsdn_rating where userid=%s', (uid, ))) # оценки выствленные uid пользователем другим сообщениям
 
-    def getOtherToUserRating(self, uid):
+    def get_rsdn_others_rate_member(self, uid):
         return self.count_rating(self.query("""
             select rsdn_rating.userrating, rsdn_rating.rate
             from rsdn_rating 
@@ -276,11 +275,11 @@ class CStorage(CConfigurable):
             """
             , (uid, ))) # оценки выствленные другими пользователями сообщениям uid пользователя
 
-    def getUser(self, uid):
-        return self.queryRow("select usernick, username, realname, homepage, wherefrom, origin, userclass, specialization from rsdn_users where id=%s", (uid, ))
+    def get_rsdn_member(self, uid):
+        return self.query_row("select usernick, username, realname, homepage, wherefrom, origin, userclass, specialization from rsdn_users where id=%s", (uid, ))
 
-    def getMessage(self, mid):
-        return self.queryRow("""
+    def get_rsdn_message(self, mid):
+        return self.query_row("""
             select topicid, parentid, userid, forumid, subject, messagename, 
                    message, articleid, messagedate, updatedate, userrole, usertitle, 
                    lastmoderated, closed

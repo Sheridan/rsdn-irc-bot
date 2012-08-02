@@ -1,13 +1,13 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
-import sys, string, os, re, random, urllib2
+import sys, string, os, random, urllib2
 from xml.dom.minidom import parseString
 sys.path.append(os.path.abspath('/usr/local/lib/rsdn-irc-bot/'))
 import GO
 
 class CCommander(object):
 
-    def _checkInt(self, val, minimum, maximum):
+    def _chek_for_int(self, val, minimum, maximum):
         if val == None or val == '':
             return [0, u'Отсутствует параметр, почитайте #help']
         try:
@@ -20,14 +20,14 @@ class CCommander(object):
             return [0, u'Число слишком большое']
         return [1, num]
 
-    def _checkFlags(self, val, flags):
+    def _chek_for_flags(self, val, flags):
         val = val.strip()
         for flag in val:
             if flag not in flags:
                 return [0, u'Неизвестный флаг `%s`, почитайте #help'%flag]
         return [1, val]
 
-    def _checkString(self, val):
+    def _chek_for_string(self, val):
         if val == None or val == '':
             return [0, u'Отсутствует параметр, почитайте #help']
         return [1, val]
@@ -38,7 +38,7 @@ class CCommander(object):
     def deop  (self, cmd): cmd.user().set_mode(cmd.channel(), '-o')
 
     def g(self, cmd):
-        (ok, kw) = self._checkString(' '.join(cmd.arguments()))
+        (ok, kw) = self._chek_for_string(' '.join(cmd.arguments()))
         if ok:
             kw = '%20'.join(kw.split(' '))
             engines = [u'http://img.meta.ua/rsdnsearch/?q=%s',
@@ -50,19 +50,19 @@ class CCommander(object):
         else: cmd.reply_error(kw)
 
     def mid(self, cmd):
-        (ok, mid) = self._checkInt(''.join(cmd.arguments()), 1, 2147483646)
+        (ok, mid) = self._chek_for_int(''.join(cmd.arguments()), 1, 2147483646)
         if ok:
-            data = GO.rsdn.getTopic(mid)
+            data = GO.rsdn.get_rsdn_topic(mid)
             if data['exists']:
                 cmd.reply(u'Пост находится в топике `%s` ( %s ) за дату %s, от пользователя %s. Ответы %s.'%(
                                                                                             data['top']['subject'], 
-                                                                                            GO.rsdn.getMessageUrlById(data['top']['mid']),
+                                                                                            GO.rsdn.get_message_url_by_id(data['top']['mid']),
                                                                                             data['top']['date'],
                                                                                             data['top']['user'],
                                                                                             u'запрещены' if data['top']['closed'] else u'разрешены'))
                 cmd.reply(u'Пост `%s` ( %s ) написан %s пользователем %s. Ответы %s.'%(
                                                                                             data['self']['subject'], 
-                                                                                            GO.rsdn.getMessageUrlById(data['self']['mid']),
+                                                                                            GO.rsdn.get_message_url_by_id(data['self']['mid']),
                                                                                             data['self']['date'],
                                                                                             data['self']['user'],
                                                                                             u'запрещены' if data['self']['closed'] else u'разрешены'))
@@ -71,24 +71,24 @@ class CCommander(object):
                 cmd.reply(u'-------------------------')
                 cmd.reply(u'Участники: %s'%(u', '.join(['%s:%s'%(mber,cnt) for mber, cnt in data['members'].items()])))
                 cmd.reply(u'Всего сообщений в топике: %d'%data['count'])
-                cmd.reply(u'Оценка сообщения (из БД): %s'%GO.storage.getTopicRating(mid))
+                cmd.reply(u'Оценка сообщения (из БД): %s'%GO.storage.get_rsdn_topic_rating(mid))
             else: cmd.reply_error(u'Сообщение не существует или ошибка сервера')
-        else: cmd.reply_error(kw)
+        else: cmd.reply_error(cmd)
 
     def uid(self, cmd):
-        (ok, uid) = self._checkInt(''.join(cmd.arguments()), 1, 2147483646)
+        (ok, uid) = self._chek_for_int(''.join(cmd.arguments()), 1, 2147483646)
         if not ok:
-            (ok, uid) = self._checkString(''.join(cmd.arguments()))
+            (ok, uid) = self._chek_for_string(''.join(cmd.arguments()))
             if not ok: 
                 cmd.reply_error(uid)
                 return
-            uid = GO.storage.getUserIdByName(uid)
+            uid = GO.storage.get_rsdn_member_id_by_name(uid)
             if uid == None: 
                 cmd.reply_error(u'Не могу найти у себя этого пользователя')
                 return
-        data = GO.rsdn.getUser(uid)
+        data = GO.rsdn.get_rsdn_member(uid)
         if data != None:
-            dbdata = GO.storage.getUserStats(uid)
+            dbdata = GO.storage.get_rsdn_member_stats(uid)
             cmd.reply(u'Имя: %s, ник: %s, реальное имя: %s. Город: %s. Специализация: %s. Web: %s. '%(
                                                                                         data['userName'], 
                                                                                         data['userNick'],
@@ -99,18 +99,18 @@ class CCommander(object):
             cmd.reply(u'Сообщений (в БД): %s'%(dbdata['f_msgs']))
             cmd.reply(u'top10 отвечающих пользователю (из БД): %s'%dbdata['t10_o2u'])
             cmd.reply(u'top10 ответов пользователям (из БД): %s'%dbdata['t10_u2o'])
-            cmd.reply(u'Оценки, выставленные пользователем (из БД): %s'%GO.storage.getUserToOtherRating(uid))
-            cmd.reply(u'Оценки, выставленные пользователю (из БД): %s'%GO.storage.getOtherToUserRating(uid))
+            cmd.reply(u'Оценки, выставленные пользователем (из БД): %s'%GO.storage.get_rsdn_member_rate_others(uid))
+            cmd.reply(u'Оценки, выставленные пользователю (из БД): %s'%GO.storage.get_rsdn_others_rate_member(uid))
         else: cmd.reply_error(u'Пользователя не существует или ошибка сервера')
 
     def top(self, cmd):
-        (ok, num) = self._checkInt(''.join(cmd.arguments()), 2, 30)
+        (ok, num) = self._chek_for_int(''.join(cmd.arguments()), 2, 30)
         if not ok: 
             cmd.reply_error(num)
             return
         reply = []
-        #print GO.storage.getTopOfChannel(cmd.channel().name(), num)
-        for line in GO.storage.getTopOfChannel(cmd.channel().name(), num):
+        #print GO.storage.get_channel_top(cmd.channel().name(), num)
+        for line in GO.storage.get_channel_top(cmd.channel().name(), num):
             reply.append(u'%s: %s'%line)
         return cmd.reply(u'Top%s флеймеров канала %s: %s'%(num, cmd.channel().name(), ', '.join(reply)))
 
@@ -132,11 +132,11 @@ class CCommander(object):
             cmd.reply_error(u'Пропущен один из параметров')
             return
         (flags, length) = cmd.arguments()[0:2]
-        (ok, length) = self._checkInt(length, 3, 64)
+        (ok, length) = self._chek_for_int(length, 3, 64)
         if not ok: 
             cmd.reply_error(length)
             return
-        (ok, flags) = self._checkFlags(flags, 'aAdps')
+        (ok, flags) = self._chek_for_flags(flags, 'aAdps')
         if not ok: 
             cmd.reply_error(flags)
             return
@@ -150,16 +150,16 @@ class CCommander(object):
         cmd.reply(u'<%s>'%''.join(random.choice(source) for x in range(length)))
 
     def today(self, cmd):
-        data = GO.storage.getTodayEvents(cmd.channel().name())
+        data = GO.storage.get_today_events(cmd.channel().name())
         cmd.reply(u'Сообщений на канале: %s, обращений к роботу: %s, сообщений на форуме канала: %s'%(data['ch_msgs'], data['ch_bot'], data['f_msgs']))
 
     def dbstat(self, cmd):
-        stat = GO.storage.getDBStat()
+        stat = GO.storage.get_db_stats()
         for table in stat.keys():
             cmd.reply(u'Количество записей в таблице %s: %d'%(table, stat[table]))
 
     def wiki(self, cmd):
-        (ok, kw) = self._checkString('%20'.join(cmd.arguments()))
+        (ok, kw) = self._chek_for_string('%20'.join(cmd.arguments()))
         if ok:
             downloaded = urllib2.urlopen('http://ru.wikipedia.org/w/api.php?format=xml&action=opensearch&search=%s'%GO.utf8(kw))
             dom = parseString(downloaded.read())
@@ -180,7 +180,7 @@ class CCommander(object):
             cmd.reply_error(kw)
 
     def touch(self, cmd):
-        (ok, uid) = self._checkString(''.join(cmd.arguments()))
+        (ok, uid) = self._chek_for_string(''.join(cmd.arguments()))
         if ok:
             nick = ''.join(cmd.arguments())
             user = GO.bot.user(nick)

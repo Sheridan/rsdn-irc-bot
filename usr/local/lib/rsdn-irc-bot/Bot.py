@@ -1,8 +1,6 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
-import sys, socket, string, os, re, random, time
-from threading import Lock
-from threading import Thread, Lock
+import sys, os, re, random, time
 sys.path.append(os.path.abspath('/usr/local/lib/rsdn-irc-bot/'))
 import GO, Commander, Timer, Irc
 from Configurable import CConfigurable
@@ -13,6 +11,7 @@ class CBotCommand(object):
         self._arguments = arguments
         self._command   = command
         self._user = user
+
     def reply_error(self, text): self._user.send_notice(text)
     def arguments  (self      ): return self._arguments
     def command    (self      ): return self._command
@@ -26,6 +25,7 @@ class CChannelBotCommand(CBotCommand, Irc.CIrcChannelMessage):
 class CChannelToPrivateBotCommand(CChannelBotCommand):
     def                    __init__(self, irc, text, user, channel, command, arguments):
         CChannelBotCommand.__init__(self, irc, text, user, channel, command, arguments)
+
     def reply(self, text): self.user().send_message(text)
 # -------------------------------------------------------------
 class CPrivateBotCommand(CBotCommand, Irc.CIrcPrivateMessage):
@@ -45,7 +45,7 @@ class CBot(CConfigurable, Irc.CIrc):
                         self.config['auth']['realname'],
                         self.config['debug']['irc'] == 'true')
         self.operators = self.config['operators']
-        self.channelsListObserveTimer = Timer.CTimer(int(self.config['timers']['channels_list_observe']), self.request_channels)
+        self._channels_list_observe_timer = Timer.CTimer(int(self.config['timers']['channels_list_observe']), self.request_channels)
         self.commander = Commander.CCommander()
         self.bot_channels = self.config['debug']['channels']+self.config['channels'].values()
         self.debug = self.config['debug']['bot'] == 'true'
@@ -57,7 +57,7 @@ class CBot(CConfigurable, Irc.CIrc):
 
     # --------------------------------- Reactions on CIrc events -----------------------------------
     def on_my_nick_in_use(self):
-        self.set_nick(self.config['auth']['nick'],random.randint(0,100))
+        self.set_nick(self.config['auth']['nick'], random.randint(0,100))
         self.auth_oper(self.config['auth']['nick'], self.config['auth']['oper_password'])
         self.kill(self.config['auth']['nick'], 'What the fuck!')
         time.sleep(3)
@@ -69,8 +69,8 @@ class CBot(CConfigurable, Irc.CIrc):
         self.join_channel(self.config['channels']['notifications'])
         time.sleep(3)
         GO.rsdn.start()
-        self.channelsListObserveTimer.start()
-        self.sendLog('Online')
+        self._channels_list_observe_timer.start()
+        self.send_channel_log('Online')
 
     def on_channel_in_list(self, channel):
         if self.can_i_work_with_channel(channel.name()):
@@ -79,7 +79,7 @@ class CBot(CConfigurable, Irc.CIrc):
             self.check_channel_topic(channel)
 
     def on_user_join_channel(self, channel, user):
-        if self.isOperator(user, channel):
+        if self.is_operator(user, channel):
             user.set_mode(channel, '+o')
 
     def on_me_join_channel(self, channel):
@@ -97,17 +97,17 @@ class CBot(CConfigurable, Irc.CIrc):
             cmd = command[0]
             parametres = command[1:]
             if cmd in GO.public_commands.keys() and prefix in GO.public_commands[cmd]['pfx']:
-                if not GO.public_commands[cmd]['adm'] or GO.public_commands[cmd]['adm'] and self.isOperator(message.user(), message.channel()):
+                if not GO.public_commands[cmd]['adm'] or GO.public_commands[cmd]['adm'] and self.is_operator(message.user(), message.channel()):
                     if   prefix == '!': getattr(self.commander, cmd)(CChannelBotCommand         (self, message.text(), message.user(), message.channel(), cmd, parametres))
                     elif prefix == '@': getattr(self.commander, cmd)(CChannelToPrivateBotCommand(self, message.text(), message.user(), message.channel(), cmd, parametres))
-        GO.storage.logChannelMessage(message.user().nick(), message.channel().name(), message.text(), is_robot_command)
+        GO.storage.store_channel_message(message.user().nick(), message.channel().name(), message.text(), is_robot_command)
 
     # --------------------------------- Reactions on CIrc events -----------------------------------
     # --------------------------------- Self methods -----------------------------------------------
-    def isOperator(self, user, channel):
+    def is_operator(self, user, channel):
         for operator in self.operators['global']:
-                if re.match(operator, user.user_id()):
-                    return True
+            if re.match(operator, user.user_id()):
+                return True
         for op_channel in self.operators['channels']:
             for operator in self.operators['channels'][op_channel]:
                 if re.match(operator, user.user_id()):
@@ -132,48 +132,21 @@ class CBot(CConfigurable, Irc.CIrc):
     def send_channel_notification(self, forum_sname, text):
         channel_name = u'#%s'%forum_sname
         if self.can_i_work_with_channel(channel_name):
-            self.channels[channel_name].send_message(text)
+            self._channels[channel_name].send_message(text)
     # --------------------------------- Self methods -----------------------------------------------
 
-    #def user_mode_changed(self, prefix, arguments):
-    #    # :Sheridan|Work!Sheridan@5FC2A92.D42BA605.60BBCFB.IP MODE #bot.log -o RSDNServ
-    #    data = arguments.split(' ')
-    #    if len(data) == 3:
-    #        who = self.user_prefix_split(prefix)
-    #        channel     = data[0]
-    #        mode        = data[1]
-    #        target_user = data[2]
-    #        if target_user == GO.utf8(self.config['auth']['nick']):
-    #            mode_prefix = mode[0]
-    #            mode = mode[1:]
-    #            if mode_prefix == '-':
-    #                self.putcmd(u'SAMODE %s +o %s'%(channel, self.config['auth']['nick']))
-    #                self.set_user_mode(self.config['auth']['nick'], channel, '+%s'%mode)
-    #                self.set_user_mode(who['nick'], channel, '-%s'%mode)
-
-    #def user_has_been_kicked(self, prefix, arguments):
-    #    #  :Sheridan|Work!Sheridan@5FC2A92.D42BA605.60BBCFB.IP KICK #bot.log RSDNServ :Sheridan|Work
-    #    data = arguments.split(' ')
-    #    who = self.user_prefix_split(prefix)
-    #    channel     = data[0]
-    #    target_user = data[1]
-    #    if target_user == GO.utf8(self.config['auth']['nick']):
-    #        self.status.remove_channel(channel)
-    #        self.go_join_channel(channel)
-    #        self.putcmd(u'KICK %s %s'%(channel, who['nick']))
-
     def stop(self):
-        self.sendLog('Offline')
-        self.channelsListObserveTimer.stop()
+        self.send_channel_log('Offline')
+        self._channels_list_observe_timer.stop()
         self.quit()
         self.terminate()
         GO.rsdn.stop()
         GO.storage.stop()
 
-    def sendRsdnNotification(self, text):
+    def send_rsdn_notification(self, text):
         if self.notifications_channel != None and self.notifications_channel.joined():
             self.notifications_channel.send_message(text)
 
-    def sendLog(self, text):
+    def send_channel_log(self, text):
         if self.log_channel != None and self.log_channel.joined():
             self.log_channel.send_message(text)

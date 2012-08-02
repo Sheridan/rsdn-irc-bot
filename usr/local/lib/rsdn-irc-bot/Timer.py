@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 import time
-from threading import Thread, Lock
+from threading import Thread
 
 class CTimer(Thread):
 
