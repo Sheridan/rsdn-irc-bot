@@ -108,8 +108,8 @@ class CBot(CConfigurable, Irc.CIrc):
         for operator in self.operators['global']:
             if re.match(operator, user.user_id()):
                 return True
-        for op_channel in self.operators['channels']:
-            for operator in self.operators['channels'][op_channel]:
+        if channel.name() in self.operators['channels']:
+            for operator in self.operators['channels'][channel.name()]:
                 if re.match(operator, user.user_id()):
                     return True
         return False
