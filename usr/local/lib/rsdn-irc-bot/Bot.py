@@ -84,7 +84,7 @@ class CBot(CConfigurable, Irc.CIrc):
 
     def on_me_join_channel(self, channel):
         channel.set_samode('-lri')
-        self.me.set_samode(channel, '+o')
+        self._me.set_samode(channel, '+o')
         self.check_channel_topic(channel)
         if not self.log_channel            and channel.name() == self.config['channels']['log']:           self.log_channel           = channel
         if not self.notifications_channel  and channel.name() == self.config['channels']['notifications']: self.notifications_channel = channel
@@ -139,7 +139,7 @@ class CBot(CConfigurable, Irc.CIrc):
         self.send_channel_log('Offline')
         self._channels_list_observe_timer.stop()
         self.quit()
-        self.terminate()
+        self._terminate()
         GO.rsdn.stop()
         GO.storage.stop()
 
