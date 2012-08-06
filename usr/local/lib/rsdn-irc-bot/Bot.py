@@ -145,11 +145,12 @@ class CBot(CConfigurable, Irc.CIrc):
             self._channels[channel_name].send_message(text)
             
     def send_user_notification(self, rsdn_member_id, text):
-        for nickname in GO.storage.get_registered_nicknames(rsdn_member_id):
-            nickname = nickname[0]
-            user = self.user(nickname)
-            if user != None:
-                user.send_message(text)
+        if rsdn_member_id > 0:
+            for nickname in GO.storage.get_registered_nicknames(rsdn_member_id):
+                nickname = nickname[0]
+                user = self.user(nickname)
+                if user != None:
+                    user.send_message(text)
     # --------------------------------- Self methods -----------------------------------------------
 
     def stop(self):
