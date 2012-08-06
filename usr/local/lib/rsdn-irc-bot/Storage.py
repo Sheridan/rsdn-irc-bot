@@ -278,6 +278,12 @@ class CStorage(CConfigurable):
     def get_rsdn_member(self, uid):
         return self.query_row("select usernick, username, realname, homepage, wherefrom, origin, userclass, specialization from rsdn_users where id=%s", (uid, ))
 
+    def get_rsdn_member_id(self, username):
+        result = self.query_row("select id from rsdn_users where username = %s", (username, ))
+        if result != None:
+            return result[0]
+        return 0
+
     def get_rsdn_message(self, mid):
         return self.query_row("""
             select topicid, parentid, userid, forumid, subject, messagename, 
@@ -301,3 +307,20 @@ class CStorage(CConfigurable):
                 date(channels_logs.date_and_time) = %s
             order by t
         """, (channel_name, date))
+
+    def register_nickname(self, nickname, rsdn_member_id):
+        self.execute("update nicknames set rsdn_user_id = %s where nickname = %s", (rsdn_member_id, nickname))
+
+    def unregister_nickname(self, nickname):
+        self.execute("update nicknames set rsdn_user_id = 0 where nickname = %s", (nickname, ))
+        
+    def nickname_is_registered(self, nickname):
+        result = self.query_row("select rsdn_user_id from nicknames where nickname = %s", (nickname, ))
+        if result != None:
+            return result[0] > 0
+        return False
+
+    def get_registered_nicknames(self, rsdn_member_id):
+        return self.query("select nickname from nicknames where rsdn_user_id = %s", (rsdn_member_id, ))
+
+

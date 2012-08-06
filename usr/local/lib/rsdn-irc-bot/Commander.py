@@ -66,6 +66,18 @@ class CCommander(object):
         else:
             return [0, val]
 
+    def _check_for_username_and_password(self, val):
+        if len(val) < 2:
+            return [False, u'Имя или пароль забыли написать...']
+        else:
+            (ok, username) = self._check_for_string(val[0])
+            if ok:
+                (ok, password) = self._check_for_string(u' '.join(val[1:]))
+                if ok:
+                    return [True, [username, password]]
+                else: [False, u'Пароль - не строка']
+            else: [False, u'Имя пользователя - не строка']
+
     def mute  (self, cmd): cmd.channel().set_mode('+m')
     def demute(self, cmd): cmd.channel().set_mode('-m')
     def op    (self, cmd): cmd.user().set_mode(cmd.channel(), '+o')
@@ -160,6 +172,14 @@ class CCommander(object):
                                        u'администраторам робота' if GO.public_commands[command]['adm'] else u'всем',
                                        GO.public_commands[command]['epl']
                                        ))
+        cmd.reply(u'--- Приватные комманды ---')
+        for command in GO.prvate_commands.keys():
+            cmd.reply(u'%s: %s. Доступна %s. Пример: %s'%
+                                       (command, 
+                                       GO.prvate_commands[command]['hlp'],
+                                       u'администраторам робота' if GO.prvate_commands[command]['adm'] else u'всем',
+                                       GO.prvate_commands[command]['epl']
+                                       ))
 
     def pwgen(self, cmd):
         if len(cmd.arguments()) < 2: 
@@ -237,3 +257,51 @@ class CCommander(object):
         else:
             cmd.reply_error(date)
         
+    def register(self, cmd):
+        (ok, auth) = self._check_for_username_and_password(cmd.arguments())
+        if ok:
+            username = auth[0]
+            password = auth[1]
+            (ok, uid) = GO.rsdn.auth_rsdn_member(username, password)
+            if ok:
+                GO.storage.register_nickname(cmd.user().nick(), uid)
+                cmd.reply(u'Зарегестрировано')
+            else:
+                if uid == 0:
+                    cmd.reply_error(u'К сожалению не могу найти идентификатор пользователя rsdn. Выполните для начала !uid <ваш идентификатор на rsdn> например на канале #test')
+                else:
+                    cmd.reply_error(u'Гм... Либо имя пользователя и пароль неверны, либо RSDN отвалился.')
+        else: cmd.reply_error(auth)
+    
+    def unregister(self, cmd):
+        (ok, auth) = self._check_for_username_and_password(cmd.arguments())
+        if ok:
+            username = auth[0]
+            password = auth[1]
+            (ok, uid) = GO.rsdn.auth_rsdn_member(username, password)
+            if ok:
+                GO.storage.unregister_nickname(cmd.user().nick())
+                cmd.reply(u'Регистрация отменена')
+            else:
+                if uid == 0:
+                    cmd.reply_error(u'К сожалению не могу найти идентификатор пользователя rsdn. Выполните для начала !uid <ваш идентификатор на rsdn> например на канале #test')
+                else:
+                    cmd.reply_error(u'Гм... Либо имя пользователя и пароль неверны, либо RSDN отвалился.')
+        else: cmd.reply_error(auth)
+    
+    def auth(self, cmd):
+        (ok, auth) = self._check_for_username_and_password(cmd.arguments())
+        if ok:
+            username = auth[0]
+            password = auth[1]
+            (ok, uid) = GO.rsdn.auth_rsdn_member(username, password)
+            if ok:
+                cmd.user().authorize()
+                cmd.user().send_notice(u'Авторизация успешна')
+            else:
+                if uid == 0:
+                    cmd.reply_error(u'К сожалению не могу найти идентификатор пользователя rsdn. Выполните для начала !uid <ваш идентификатор на rsdn> например на канале #test')
+                else:
+                    cmd.reply_error(u'Гм... Либо имя пользователя и пароль неверны, либо RSDN отвалился.')
+        else: cmd.reply_error(auth)
+    

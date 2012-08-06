@@ -1,8 +1,8 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
-import sys, os, time, datetime
+import sys, os, time, datetime, suds
 from threading import Thread
-from suds.client import Client
+from suds.client import Client, WebFault
 sys.path.append(os.path.abspath('/usr/local/lib/rsdn-irc-bot/'))
 import GO, Timer
 from Configurable import CConfigurable
@@ -186,6 +186,15 @@ class CRSDNSync(Thread, CConfigurable):
                         if message['parentId'] == 0:
                             GO.bot.send_channel_notification(forum_name, u'Новый топик %s'%text)
                             GO.bot.send_channel_notification(forum_name, urls)
+                        else:
+                            parent_msg = GO.storage.get_rsdn_message(message['parentId'])
+                            if parent_msg != None:
+                                GO.bot.send_user_notification(parent_msg[2], u'В форуме `%s` ответ на сообщение `%s`: %s'%(
+                                                                                          self.forums[fid]['name'],
+                                                                                          GO.unicod(parent_msg[4]),
+                                                                                          text
+                                                                                         ))
+                                GO.bot.send_user_notification(parent_msg[2], urls)
                 #self.mineMissedInMessages(newData['newMessages'][0])
 
             if len(newData['newRating']):
@@ -207,15 +216,24 @@ class CRSDNSync(Thread, CConfigurable):
                         elif rate ==  0: r = u'-1'
                         elif rate == -2: r = u':)'
                         elif rate == -4: r = u'+1'
-                        GO.bot.send_rsdn_notification(u'Оценка %s сообщению `%s` от пользователя %s'%(
-                                                                                                      r, 
-                                                                                                      GO.unicod(target_msg[4]) if target_msg != None else u'--нет-в-бд--', 
-                                                                                                      GO.unicod(from_user[1])  if target_msg != None else u'--нет-в-бд--'
-                                                                                                    ))
-                        GO.bot.send_rsdn_notification(u' | '.join([
+                        text = u'Оценка %s сообщению `%s` от пользователя %s'%(
+                                                                                r, 
+                                                                                GO.unicod(target_msg[4]) if target_msg != None else u'--нет-в-бд--', 
+                                                                                GO.unicod(from_user[1])  if target_msg != None else u'--нет-в-бд--'
+                                                                              )
+                        urls = u' | '.join([
                                               self.get_message_url_by_id(rating['messageId']), 
                                               self.get_member_url_by_id(rating['userId'])
-                                            ]))
+                                            ])
+                        GO.bot.send_rsdn_notification(text)
+                        GO.bot.send_rsdn_notification(urls)
+                        if target_msg != None:
+                            GO.bot.send_user_notification(target_msg[2], u'В форуме `%s` ответ на сообщение `%s`: %s'%(
+                                                                                          self.forums[fid]['name'],
+                                                                                          GO.unicod(target_msg[4]),
+                                                                                          text
+                                                                                         ))
+                            GO.bot.send_user_notification(target_msg[2], urls)
                 #self.mineMissedInMessages(newData['newRating'][0])
 
             if len(newData['newModerate']):
@@ -347,6 +365,26 @@ class CRSDNSync(Thread, CConfigurable):
         else:
             results.append({'exists': False})
         return results
+
+    def auth_rsdn_member(self, username, password):
+        uid = GO.storage.get_rsdn_member_id(username)
+        if uid > 0:
+            (ok, client) = self._client()
+            if ok:
+                GO.bot.send_channel_log(u'RSDN. Авторизация пользователя.')
+                try:
+                    request = client.factory.create('UserByIdsRequest')
+                    request.userName = username
+                    request.password = password
+                    request.userIds.int.append(uid)
+                    answer = client.service.GetUserByIds(request)
+                    GO.bot.send_channel_log(u'RSDN. Авторизация пользователя. Успешно.')
+                    return [True, uid]
+                except WebFault, e:
+                    GO.bot.send_channel_log(u'RSDN. Авторизация пользователя. Провал.')
+                    return [False, uid]
+            return [False, 0]
+        return [False, 0]
 
     def get_forum_id(self, short_name):
         for fid in self.forums.keys():

@@ -48,6 +48,7 @@ class CIrcChannels(object):
 class CIrcUser(object):
     def __init__(self, irc, user_id):
         self._irc    = irc
+        self._authorized = False
         self.rename(user_id)
 
     def rename(self, user_id):
@@ -65,11 +66,15 @@ class CIrcUser(object):
     def ident       (self               ): return self._ident
     def host        (self               ): return self._host
     def user_id     (self               ): return self._user_id
+    def authorized  (self               ): return self._authorized
+    def authorize   (self, val=True     ): self._authorized = val
+    def kill        (self, text         ): self._irc.kill(self._nick, text)
 # ------------------------------------------------------------------------------
 class CIrcUsers(object):
     def __init__(self, irc):
         self._irc  = irc
         self._data = dict()
+
     def to_nick(self, user_nick_or_user_id):
         return user_nick_or_user_id if '!' not in user_nick_or_user_id else user_nick_or_user_id[0:user_nick_or_user_id.find('!')]
 
@@ -122,16 +127,18 @@ class CIrcPrivateMessage(CIrcMessage):
 class CIrc(Thread):
     def __init__(self, host, port, nick, ident, hostname, realname, irc_debug = False):
         Thread.__init__(self)
-        self._irc_debug = irc_debug
-        self._terminate = False
-        self._realname   = realname
-        self._host       = host
-        self._port       = port
-        self._mutex      = Lock()
-        self._connected  = False
-        self._channels   = CIrcChannels(self)
-        self._users      = CIrcUsers(self)
-        self._me         = CIrcUser(self, u'%s!%s@%s'%(nick, ident, hostname))
+        self._irc_debug    = irc_debug
+        self._terminate    = False
+        self._realname     = realname
+        self._host         = host
+        self._port         = port
+        self._mutex        = Lock()
+        self._connected    = False
+        self._channels     = CIrcChannels(self)
+        self._users        = CIrcUsers(self)
+        self._me           = CIrcUser(self, u'%s!%s@%s'%(nick, ident, hostname))
+        self._auth_threads = list()
+        self._auth_timeout = 10
 
     # ------------------------------------- base ------------------------------------------------
     def putcmd(self, cmd):
@@ -204,6 +211,7 @@ class CIrc(Thread):
         channel = self._channels[data[1].lower()]
         user    = self._users.add_by_parts(data[5], data[2], data[3])
         channel.add_user(user)
+        self.authorization(user)
         if 'on_user_join_channel' in dir(self):
             getattr(self, 'on_user_join_channel')(channel, user)
 
@@ -220,6 +228,7 @@ class CIrc(Thread):
             channel = self._channels[channel_name]
             user    = self._users.add(prefix)
             channel.add_user(user)
+            self.authorization(user)
             if 'on_user_join_channel' in dir(self):
                 getattr(self, 'on_user_join_channel')(channel, user)
 
@@ -250,6 +259,8 @@ class CIrc(Thread):
         new_nick = arguments[1:]
         self._users.change_user_nick(prefix, new_nick)
         user = self._users[new_nick]
+        user.authorize(False)
+        self.authorization(user)
         if 'on_user_nick_change' in dir(self):
             getattr(self, 'on_user_nick_change')(user, old_nick, new_nick)
 
@@ -270,7 +281,7 @@ class CIrc(Thread):
         """ Message received """
         target = arguments[0:arguments.find(' ')]
         text   = arguments[arguments.find(' ')+2:]
-        user   = self._users[prefix]
+        user   = self._users.add(prefix)
         if target == self._me.nick():
             if 'on_private_message' in dir(self):
                 getattr(self, 'on_private_message')(CIrcPrivateMessage(self, text, user))
@@ -298,9 +309,6 @@ class CIrc(Thread):
         if 'on_channel_topic_changed' in dir(self):
             getattr(self, 'on_channel_topic_changed')(channel)
     # ------------------------------------- commands actions-------------------------------------
-    # ------------------------------------- me & IRC manage -------------------------------------
-    
-    # ------------------------------------- me & IRC manage -------------------------------------
     # ------------------------------------- Tools -------------------------------------
     def split_message(self, text, limit=200): 
         temp = u''
@@ -313,6 +321,22 @@ class CIrc(Thread):
         if len(temp) > 0:
             result.append(temp)
         return result
+    
+    def authorization(self, user):
+        if not user.authorized() and 'authorization_need' in dir(self) and getattr(self, 'authorization_need')(user):
+            Thread(target=getattr(self, 'auth_thread'), args=(user, )).start()
+    
+    def auth_thread(self, user):
+        if not user.nick() in self._auth_threads:
+            self._auth_threads.append(user.nick())
+            secunds = self._auth_timeout
+            while not user.authorized() and secunds > 0:
+                user.send_notice(u'Authorization need, secunds to kill: %d'%secunds)
+                time.sleep(1)
+                secunds -= 1
+            self._auth_threads.remove(user.nick())
+            if not user.authorized():
+                user.kill(u'Not authorized')
     # ------------------------------------- Tools -------------------------------------
     # ------------------------------------- IRC manage ------------------------------------------
     def login(self):

@@ -102,13 +102,23 @@ class CBot(CConfigurable, Irc.CIrc):
                     elif prefix == '@': getattr(self.commander, cmd)(CChannelToPrivateBotCommand(self, message.text(), message.user(), message.channel(), cmd, parametres))
         GO.storage.store_channel_message(message.user().nick(), message.channel().name(), message.text(), is_robot_command)
 
+    def on_private_message(self, message):
+        command = re.split('\s+', message.text().strip())
+        cmd = command[0]
+        parametres = command[1:]
+        if cmd in GO.prvate_commands.keys():
+            if not GO.prvate_commands[cmd]['adm'] or GO.prvate_commands[cmd]['adm'] and self.is_operator(message.user()):
+                getattr(self.commander, cmd)(CPrivateBotCommand(self, message.text(), message.user(), cmd, parametres))
+    
+    def authorization_need(self, user):
+        return GO.storage.nickname_is_registered(user.nick())
     # --------------------------------- Reactions on CIrc events -----------------------------------
     # --------------------------------- Self methods -----------------------------------------------
-    def is_operator(self, user, channel):
+    def is_operator(self, user, channel=None):
         for operator in self.operators['global']:
             if re.match(operator, user.user_id()):
                 return True
-        if channel.name() in self.operators['channels']:
+        if channel != None and channel.name() in self.operators['channels']:
             for operator in self.operators['channels'][channel.name()]:
                 if re.match(operator, user.user_id()):
                     return True
@@ -133,6 +143,13 @@ class CBot(CConfigurable, Irc.CIrc):
         channel_name = u'#%s'%forum_sname
         if self.can_i_work_with_channel(channel_name):
             self._channels[channel_name].send_message(text)
+            
+    def send_user_notification(self, rsdn_member_id, text):
+        for nickname in GO.storage.get_registered_nicknames(rsdn_member_id):
+            nickname = nickname[0]
+            user = self.user(nickname)
+            if user != None:
+                user.send_message(text)
     # --------------------------------- Self methods -----------------------------------------------
 
     def stop(self):

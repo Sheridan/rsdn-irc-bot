@@ -23,10 +23,11 @@ public_commands  = {
         'history': { 'pfx': '@' , 'adm': False, 'hlp': u'Запрос истории канала за дату', 'epl': u'!history <ДД-ММ-ГГГГ>' },
         'touch'  : { 'pfx': '!@', 'adm': False, 'hlp': u'Позвать пользователя', 'epl': u'!touch <ник>' }
                    }
-prvate_commands   = {
-        'register': { 'adm': False , 'hlp': u'Зарегестрировать свой ник', 'epl': u'register <nickname> <rsdn nickname> <rsdn password>' },
-        'auth'    : { 'adm': False , 'hlp': u'Авторизироваться', 'epl': u'auth <rsdn nickname> <rsdn password>' }
-                    }
+prvate_commands     = {
+        'register'  : { 'adm': False , 'hlp': u'Зарегестрировать свой текущий ник', 'epl': u'register <rsdn nickname> <rsdn password>' },
+        'unregister': { 'adm': False , 'hlp': u'Удалить регистрацию текущего ника', 'epl': u'unregister <rsdn nickname> <rsdn password>' },
+        'auth'      : { 'adm': False , 'hlp': u'Авторизироваться', 'epl': u'auth <rsdn nickname> <rsdn password>' }
+                      }
 
 storage = Storage.CStorage()
 bot     = Bot.CBot()
@@ -35,24 +36,18 @@ rsdn    = RSDNSync.CRSDNSync()
 
 def utf8(s):
     try:
-        if   type(s) == type(u''):
-            return s.encode('utf8')
-        elif type(s) == type(''):
-            return s
-        else: 
-            print 'Не тот тип: %s (%s) '%(type(s), s)
+        if   type(s) == type(u''): return s.encode('utf8')
+        elif type(s) == type(''):  return s
+        else:                      print 'Не тот тип: %s (%s) '%(type(s), s)
     except UnicodeDecodeError:
         print 'utf8. Unicode error: ' + s
         bot.stop()
         
 def unicod(s):
     try:
-        if   type(s) == type(u''):
-            return s
-        elif type(s) == type(''):
-            return unicode(s.decode('utf8'))
-        else: 
-            print 'Не тот тип: %s (%s) '%(type(s), s)
+        if   type(s) == type(u''): return s
+        elif type(s) == type(''):  return unicode(s.decode('utf8'))
+        else:                      print 'Не тот тип: %s (%s) '%(type(s), s)
     except UnicodeDecodeError:
         print 'Unicode. Unicode error: ' + s
         bot.stop()
