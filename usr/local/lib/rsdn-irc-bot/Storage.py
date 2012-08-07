@@ -118,8 +118,6 @@ class CStorage(CConfigurable):
                           ))[0][0]
 
     def update_rsdn_members(self, soap_user_info):
-        #print soap_user_info
-        #print '-------------------------------------------------------------'
         return self.callproc('update_rsdn_users', (
                               soap_user_info['userId'],
                               soap_user_info['userNick'],
