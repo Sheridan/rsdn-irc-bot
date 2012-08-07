@@ -9,7 +9,8 @@ from Configurable import CConfigurable
 class CStorage(CConfigurable):
     def __init__(self):
         CConfigurable.__init__(self, '/etc/rsdn-irc-bot/storage.conf')
-        self.pool = psycopg2.pool.ThreadedConnectionPool(3, 20, 
+        self.pool = psycopg2.pool.ThreadedConnectionPool(int(self.config['pool']['min_connections']), 
+                                                         int(self.config['pool']['max_connections']), 
                                                          database = self.config['database'], 
                                                          user     = self.config['user'], 
                                                          password = self.config['password'], 
@@ -35,21 +36,21 @@ class CStorage(CConfigurable):
         con = self.prepare(sql, data)
         result = con[1].fetchone()
         con[1].close()
-        self.pool.putconn(con[0])
+        self.pool.putconn(con[0], close=True)
         return result
 
     def query(self, sql, data=tuple()):
         con = self.prepare(sql, data)
         result = con[1].fetchall()
         con[1].close()
-        self.pool.putconn(con[0])
+        self.pool.putconn(con[0], close=True)
         return result
 
     def execute(self, sql, data=tuple()):
         con = self.prepare(sql, data)
         con[0].commit()
         con[1].close()
-        self.pool.putconn(con[0])
+        self.pool.putconn(con[0], close=True)
 
     def callproc(self, procname, data=tuple()):
         connection = self.pool.getconn()
@@ -59,7 +60,7 @@ class CStorage(CConfigurable):
         result = cursor.fetchall()
         connection.commit()
         cursor.close()
-        self.pool.putconn(connection)
+        self.pool.putconn(connection, close=True)
         return result
 
     def get_irc_nickname_id(self, nickname):
@@ -97,8 +98,6 @@ class CStorage(CConfigurable):
         self.execute("update rsdn_row_versions set value=%s where name=%s", (value, name))
 
     def update_rsdn_messages(self, soap_message_info):
-        #print soap_message_info
-        #print '-------------------------------------------------------------'
         return self.callproc('update_rsdn_messages', (
                               soap_message_info['messageId'],
                               soap_message_info['topicId'],
@@ -281,7 +280,7 @@ class CStorage(CConfigurable):
 
     def unregister_nickname(self, nickname):
         self.execute("update nicknames set rsdn_user_id = 0 where nickname = %s", (nickname, ))
-        
+
     def nickname_is_registered(self, nickname):
         result = self.query_row("select rsdn_user_id from nicknames where nickname = %s", (nickname, ))
         if result != None:
