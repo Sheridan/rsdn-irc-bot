@@ -4,7 +4,7 @@
 
 -- Dumped from database version 9.1.4
 -- Dumped by pg_dump version 9.1.4
--- Started on 2012-08-07 08:46:08 MSK
+-- Started on 2012-08-07 12:57:29 MSK
 
 SET statement_timeout = 0;
 SET client_encoding = 'UTF8';
@@ -13,7 +13,7 @@ SET check_function_bodies = false;
 SET client_min_messages = warning;
 
 --
--- TOC entry 2795 (class 1262 OID 16581)
+-- TOC entry 2799 (class 1262 OID 16581)
 -- Name: rsdn-irc-bot; Type: DATABASE; Schema: -; Owner: rsdn
 --
 
@@ -39,7 +39,7 @@ CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
 
 
 --
--- TOC entry 2798 (class 0 OID 0)
+-- TOC entry 2802 (class 0 OID 0)
 -- Dependencies: 171
 -- Name: EXTENSION plpgsql; Type: COMMENT; Schema: -; Owner: 
 --
@@ -51,7 +51,7 @@ SET search_path = public, pg_catalog;
 
 --
 -- TOC entry 184 (class 1255 OID 88823)
--- Dependencies: 524 5
+-- Dependencies: 5 524
 -- Name: update_rsdn_messages(bigint, bigint, bigint, bigint, bigint, character varying, character varying, text, bigint, timestamp with time zone, timestamp with time zone, character varying, character varying, timestamp with time zone, boolean); Type: FUNCTION; Schema: public; Owner: rsdn
 --
 
@@ -109,7 +109,7 @@ ALTER FUNCTION public.update_rsdn_moderate(i_crerate timestamp with time zone, i
 
 --
 -- TOC entry 183 (class 1255 OID 107113)
--- Dependencies: 524 5
+-- Dependencies: 5 524
 -- Name: update_rsdn_rating(integer, integer, timestamp with time zone, bigint, bigint, bigint); Type: FUNCTION; Schema: public; Owner: rsdn
 --
 
@@ -135,7 +135,7 @@ ALTER FUNCTION public.update_rsdn_rating(i_userrating integer, i_rate integer, i
 
 --
 -- TOC entry 185 (class 1255 OID 88834)
--- Dependencies: 524 5
+-- Dependencies: 5 524
 -- Name: update_rsdn_users(bigint, character varying, character varying, character varying, character varying, character varying, character varying, character varying, integer); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -184,7 +184,7 @@ ALTER TABLE public.channels_logs OWNER TO rsdn;
 
 --
 -- TOC entry 164 (class 1259 OID 16611)
--- Dependencies: 5 165
+-- Dependencies: 165 5
 -- Name: channels_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: rsdn
 --
 
@@ -199,7 +199,7 @@ CREATE SEQUENCE channels_logs_id_seq
 ALTER TABLE public.channels_logs_id_seq OWNER TO rsdn;
 
 --
--- TOC entry 2799 (class 0 OID 0)
+-- TOC entry 2803 (class 0 OID 0)
 -- Dependencies: 164
 -- Name: channels_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: rsdn
 --
@@ -240,7 +240,7 @@ CREATE SEQUENCE nicknames_id_seq
 ALTER TABLE public.nicknames_id_seq OWNER TO rsdn;
 
 --
--- TOC entry 2800 (class 0 OID 0)
+-- TOC entry 2804 (class 0 OID 0)
 -- Dependencies: 162
 -- Name: nicknames_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: rsdn
 --
@@ -348,7 +348,7 @@ ALTER TABLE public.rsdn_users OWNER TO rsdn;
 
 --
 -- TOC entry 167 (class 1259 OID 16653)
--- Dependencies: 161 5
+-- Dependencies: 5 161
 -- Name: rsdn_users_id_seq; Type: SEQUENCE; Schema: public; Owner: rsdn
 --
 
@@ -363,7 +363,7 @@ CREATE SEQUENCE rsdn_users_id_seq
 ALTER TABLE public.rsdn_users_id_seq OWNER TO rsdn;
 
 --
--- TOC entry 2801 (class 0 OID 0)
+-- TOC entry 2805 (class 0 OID 0)
 -- Dependencies: 167
 -- Name: rsdn_users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: rsdn
 --
@@ -382,7 +382,7 @@ ALTER TABLE ONLY channels_logs ALTER COLUMN id SET DEFAULT nextval('channels_log
 
 --
 -- TOC entry 2763 (class 2604 OID 16604)
--- Dependencies: 162 163 163
+-- Dependencies: 163 162 163
 -- Name: id; Type: DEFAULT; Schema: public; Owner: rsdn
 --
 
@@ -399,7 +399,7 @@ ALTER TABLE ONLY rsdn_users ALTER COLUMN id SET DEFAULT nextval('rsdn_users_id_s
 
 
 --
--- TOC entry 2779 (class 2606 OID 16622)
+-- TOC entry 2780 (class 2606 OID 16622)
 -- Dependencies: 165 165
 -- Name: pkey_channels_logs; Type: CONSTRAINT; Schema: public; Owner: rsdn; Tablespace: 
 --
@@ -419,7 +419,7 @@ ALTER TABLE ONLY nicknames
 
 
 --
--- TOC entry 2785 (class 2606 OID 16671)
+-- TOC entry 2789 (class 2606 OID 16671)
 -- Dependencies: 168 168
 -- Name: pkey_rsdn_messages; Type: CONSTRAINT; Schema: public; Owner: rsdn; Tablespace: 
 --
@@ -429,7 +429,7 @@ ALTER TABLE ONLY rsdn_messages
 
 
 --
--- TOC entry 2792 (class 2606 OID 107115)
+-- TOC entry 2796 (class 2606 OID 107115)
 -- Dependencies: 170 170 170 170 170
 -- Name: pkey_rsdn_moderate; Type: CONSTRAINT; Schema: public; Owner: rsdn; Tablespace: 
 --
@@ -439,7 +439,7 @@ ALTER TABLE ONLY rsdn_moderate
 
 
 --
--- TOC entry 2790 (class 2606 OID 107111)
+-- TOC entry 2794 (class 2606 OID 107111)
 -- Dependencies: 169 169 169 169
 -- Name: pkey_rsdn_rating; Type: CONSTRAINT; Schema: public; Owner: rsdn; Tablespace: 
 --
@@ -459,7 +459,7 @@ ALTER TABLE ONLY rsdn_users
 
 
 --
--- TOC entry 2781 (class 2606 OID 16634)
+-- TOC entry 2782 (class 2606 OID 16634)
 -- Dependencies: 166 166
 -- Name: pkey_rsdn_versions; Type: CONSTRAINT; Schema: public; Owner: rsdn; Tablespace: 
 --
@@ -478,7 +478,16 @@ CREATE INDEX i_channels_logs_channel ON channels_logs USING btree (channel);
 
 
 --
--- TOC entry 2777 (class 1259 OID 20519)
+-- TOC entry 2777 (class 1259 OID 107130)
+-- Dependencies: 165
+-- Name: i_channels_logs_datetime; Type: INDEX; Schema: public; Owner: rsdn; Tablespace: 
+--
+
+CREATE INDEX i_channels_logs_datetime ON channels_logs USING btree (date_and_time);
+
+
+--
+-- TOC entry 2778 (class 1259 OID 20519)
 -- Dependencies: 165
 -- Name: i_channels_logs_nick; Type: INDEX; Schema: public; Owner: rsdn; Tablespace: 
 --
@@ -505,7 +514,34 @@ CREATE INDEX i_nicknames_rsdn ON nicknames USING btree (rsdn_user_id);
 
 
 --
--- TOC entry 2782 (class 1259 OID 20472)
+-- TOC entry 2783 (class 1259 OID 107126)
+-- Dependencies: 168
+-- Name: i_rsdn_messagedate; Type: INDEX; Schema: public; Owner: rsdn; Tablespace: 
+--
+
+CREATE INDEX i_rsdn_messagedate ON rsdn_messages USING btree (messagedate);
+
+
+--
+-- TOC entry 2784 (class 1259 OID 107127)
+-- Dependencies: 168
+-- Name: i_rsdn_messages_forumid; Type: INDEX; Schema: public; Owner: rsdn; Tablespace: 
+--
+
+CREATE INDEX i_rsdn_messages_forumid ON rsdn_messages USING btree (forumid);
+
+
+--
+-- TOC entry 2785 (class 1259 OID 107125)
+-- Dependencies: 168
+-- Name: i_rsdn_messages_id; Type: INDEX; Schema: public; Owner: rsdn; Tablespace: 
+--
+
+CREATE INDEX i_rsdn_messages_id ON rsdn_messages USING btree (id);
+
+
+--
+-- TOC entry 2786 (class 1259 OID 20472)
 -- Dependencies: 168
 -- Name: i_rsdn_messages_parentid; Type: INDEX; Schema: public; Owner: rsdn; Tablespace: 
 --
@@ -514,7 +550,7 @@ CREATE INDEX i_rsdn_messages_parentid ON rsdn_messages USING btree (parentid);
 
 
 --
--- TOC entry 2783 (class 1259 OID 20471)
+-- TOC entry 2787 (class 1259 OID 20471)
 -- Dependencies: 168
 -- Name: i_rsdn_messages_userid; Type: INDEX; Schema: public; Owner: rsdn; Tablespace: 
 --
@@ -523,7 +559,7 @@ CREATE INDEX i_rsdn_messages_userid ON rsdn_messages USING btree (userid);
 
 
 --
--- TOC entry 2786 (class 1259 OID 20479)
+-- TOC entry 2790 (class 1259 OID 20479)
 -- Dependencies: 169 169 169
 -- Name: i_rsdn_rating_ids; Type: INDEX; Schema: public; Owner: rsdn; Tablespace: 
 --
@@ -532,7 +568,7 @@ CREATE INDEX i_rsdn_rating_ids ON rsdn_rating USING btree (messageid, topicid, u
 
 
 --
--- TOC entry 2787 (class 1259 OID 61692)
+-- TOC entry 2791 (class 1259 OID 61692)
 -- Dependencies: 169
 -- Name: i_rsdn_rating_messageid; Type: INDEX; Schema: public; Owner: rsdn; Tablespace: 
 --
@@ -541,7 +577,7 @@ CREATE INDEX i_rsdn_rating_messageid ON rsdn_rating USING btree (messageid);
 
 
 --
--- TOC entry 2788 (class 1259 OID 61649)
+-- TOC entry 2792 (class 1259 OID 61649)
 -- Dependencies: 169
 -- Name: i_rsdn_rating_userid; Type: INDEX; Schema: public; Owner: rsdn; Tablespace: 
 --
@@ -577,7 +613,7 @@ CREATE INDEX i_rsdn_users_usernick ON rsdn_users USING btree (usernick);
 
 
 --
--- TOC entry 2797 (class 0 OID 0)
+-- TOC entry 2801 (class 0 OID 0)
 -- Dependencies: 5
 -- Name: public; Type: ACL; Schema: -; Owner: postgres
 --
@@ -588,7 +624,7 @@ GRANT ALL ON SCHEMA public TO postgres;
 GRANT ALL ON SCHEMA public TO PUBLIC;
 
 
--- Completed on 2012-08-07 08:46:08 MSK
+-- Completed on 2012-08-07 12:57:31 MSK
 
 --
 -- PostgreSQL database dump complete
