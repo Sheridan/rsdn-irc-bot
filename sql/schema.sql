@@ -4,7 +4,7 @@
 
 -- Dumped from database version 9.1.4
 -- Dumped by pg_dump version 9.1.4
--- Started on 2012-08-07 12:57:29 MSK
+-- Started on 2012-08-07 16:52:23 MSK
 
 SET statement_timeout = 0;
 SET client_encoding = 'UTF8';
@@ -532,21 +532,21 @@ CREATE INDEX i_rsdn_messages_forumid ON rsdn_messages USING btree (forumid);
 
 
 --
--- TOC entry 2785 (class 1259 OID 107125)
--- Dependencies: 168
--- Name: i_rsdn_messages_id; Type: INDEX; Schema: public; Owner: rsdn; Tablespace: 
---
-
-CREATE INDEX i_rsdn_messages_id ON rsdn_messages USING btree (id);
-
-
---
--- TOC entry 2786 (class 1259 OID 20472)
+-- TOC entry 2785 (class 1259 OID 20472)
 -- Dependencies: 168
 -- Name: i_rsdn_messages_parentid; Type: INDEX; Schema: public; Owner: rsdn; Tablespace: 
 --
 
 CREATE INDEX i_rsdn_messages_parentid ON rsdn_messages USING btree (parentid);
+
+
+--
+-- TOC entry 2786 (class 1259 OID 107133)
+-- Dependencies: 168
+-- Name: i_rsdn_messages_topicid; Type: INDEX; Schema: public; Owner: rsdn; Tablespace: 
+--
+
+CREATE INDEX i_rsdn_messages_topicid ON rsdn_messages USING btree (topicid);
 
 
 --
@@ -624,7 +624,7 @@ GRANT ALL ON SCHEMA public TO postgres;
 GRANT ALL ON SCHEMA public TO PUBLIC;
 
 
--- Completed on 2012-08-07 12:57:31 MSK
+-- Completed on 2012-08-07 16:52:25 MSK
 
 --
 -- PostgreSQL database dump complete
