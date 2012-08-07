@@ -158,15 +158,30 @@ class CStorage(CConfigurable):
         return self.query_row("SELECT id FROM rsdn_users WHERE username = %s", (userName,))
 
     def get_today_events(self, channel):
-        result = dict()
-        result['ch_msgs'] = self.query_row("SELECT count(id) FROM channels_logs WHERE date(date_and_time) = date(now()) and is_bot_command='false' and channel=%s", (channel, ))[0]
-        result['ch_bot']  = self.query_row("SELECT count(id) FROM channels_logs WHERE date(date_and_time) = date(now()) and is_bot_command='true' and channel=%s", (channel, ))[0]
         fid = GO.rsdn.get_forum_id(channel[1:].lower())
-        if fid:
-            result['f_msgs'] = self.query_row("SELECT count(id) FROM rsdn_messages WHERE date(messagedate) = date(now()) and forumid=%s", (fid, ))[0]
-        else:
-            result['f_msgs'] = u'Неприменимо'
-        return result
+        data = self.query_row("""
+                              select
+                                  (
+                                   SELECT count(id) 
+                                   FROM channels_logs 
+                                   WHERE date_and_time between 'today' and 'tomorrow' and is_bot_command='false' and channel=%s
+                                  ) as usermsg,
+                                  (
+                                   SELECT count(id) 
+                                   FROM channels_logs 
+                                   WHERE date_and_time between 'today' and 'tomorrow' and is_bot_command='true' and channel=%s
+                                  ) as tobotmsg,
+                                  (
+                                   SELECT count(id) 
+                                   FROM rsdn_messages 
+                                   WHERE messagedate between 'today' and 'tomorrow' and forumid=%s
+                                  ) as forummsg
+                              """, (channel, channel, fid if fid else None))
+        return {
+                'ch_msgs': data[0],
+                'ch_bot' : data[1],
+                'f_msgs' : data[2] if fid else u'Неприменимо'
+               }
 
     def get_rsdn_member_stats(self, uid):
         result = dict()
