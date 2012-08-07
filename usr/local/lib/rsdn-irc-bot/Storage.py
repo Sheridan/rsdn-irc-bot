@@ -140,7 +140,7 @@ class CStorage(CConfigurable):
                           ))[0][0]
 
     def update_rsdn_moderate(self, soap_moderate):
-        return self.callproc('update_rsdn_rating', (
+        return self.callproc('update_rsdn_moderate', (
                               soap_moderate['create'],
                               soap_moderate['messageId'],
                               soap_moderate['topicId'],
