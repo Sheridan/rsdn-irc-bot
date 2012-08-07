@@ -133,53 +133,23 @@ class CStorage(CConfigurable):
                           ))[0][0]
 
     def update_rsdn_rating(self, soap_rating):
-        exists = self.query_row("SELECT count(*) FROM rsdn_rating WHERE messageid = %s and topicid = %s and userid = %s", (soap_rating['messageId'], soap_rating['topicId'], soap_rating['userId']))[0] > 0
-        sql = ''
-        if not exists:
-            #GO.bot.send_channel_log("RSDN DB. Новая оценка")
-            sql = """
-                INSERT INTO rsdn_rating(userrating, rate, ratedate, messageid, topicid, userid)
-                VALUES (%s, %s, %s, %s, %s, %s);
-            """
-        else:
-            sql = """
-                update rsdn_rating
-                set userrating=%s, rate=%s, ratedate=%s
-                where messageid=%s and topicid=%s and userid=%s;
-            """
-        self.execute(sql, (
+        return self.callproc('update_rsdn_rating', (
                               soap_rating['userRating'],
                               soap_rating['rate'],
                               soap_rating['rateDate'],
                               soap_rating['messageId'],
                               soap_rating['topicId'],
                               soap_rating['userId']
-                          ))
-        return exists
+                          ))[0][0]
 
     def update_rsdn_moderate(self, soap_moderate):
-        exists = self.query_row("SELECT count(*) FROM rsdn_moderate WHERE messageid=%s and topicid=%s and userid=%s and forumid=%s", (soap_moderate['messageId'], soap_moderate['topicId'], soap_moderate['userId'], soap_moderate['forumId']))[0] > 0
-        sql = ''
-        if not exists:
-            #GO.bot.send_channel_log("RSDN DB. Новая отметка модерирования")
-            sql = """
-                INSERT INTO rsdn_moderate(crerate, messageid, topicid, userid, forumid)
-                VALUES (%s, %s, %s, %s, %s);
-            """
-        else:
-            sql = """
-                update rsdn_moderate
-                set crerate=%s
-                where messageid=%s and topicid=%s and userid=%s and forumid=%s;
-            """
-        self.execute(sql, (
+        return self.callproc('update_rsdn_rating', (
                               soap_moderate['create'],
                               soap_moderate['messageId'],
                               soap_moderate['topicId'],
                               soap_moderate['userId'],
                               soap_moderate['forumId']
-                          ))
-        return exists
+                          ))[0][0]
 
     def record_into_db(self, iid, iid_field_name, table):
         return self.query_row("SELECT 1 FROM %s WHERE %s = %s"%(table, iid_field_name, '%s'), (iid,)) != None
