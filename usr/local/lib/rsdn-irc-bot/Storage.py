@@ -218,26 +218,11 @@ class CStorage(CConfigurable):
         sfids = ', '.join(map(str, fids))
         return self.query("""
                           with 
-                          parents as
-                          (
-                            select parentid as mid from rsdn_messages
-                            where parentid > 0 and forumid in (%s)
-                          ),
-                          topics as
-                          (
-                            select topicid as mid from rsdn_messages
-                            where topicid > 0 and forumid in (%s)
-                          ),
-                          mids as
-                          (
-                            select id from rsdn_messages where forumid in (%s)
-                          )
-                          select mid from 
-                            (
-                              select parents.mid from parents where not exists(select id from mids where id=mid)
-                            union
-                              select topics.mid from topics where not exists(select id from mids where id=mid)
-                            ) t
+                          parents as ( select parentid as mid from rsdn_messages where parentid > 0 and forumid in (%s) ),
+                          topics  as ( select topicid  as mid from rsdn_messages where topicid  > 0 and forumid in (%s) ),
+                          mids    as ( select id              from rsdn_messages where                  forumid in (%s) )
+                          select mid from ( select parents.mid from parents union select topics.mid from topics ) res
+                          where not exists( select id from mids where id=mid)
                           """%(sfids, sfids, sfids)
                          )
 #        return self.query("""
