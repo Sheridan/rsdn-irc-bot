@@ -73,7 +73,7 @@ class CStorage(CConfigurable):
     def store_channel_message(self, nickname, channel, message, is_bot_command):
         nickname_id = self.get_irc_nickname_id(nickname)
         self.execute("INSERT INTO channels_logs (nickname_id, channel, message, is_bot_command) VALUES (%s, %s, %s, %s)", (nickname_id, channel, message, is_bot_command))
-        self.execute("update nicknames set last_seen = %s", (datetime.datetime.now(),))
+        self.execute("update nicknames set last_seen = %s where id = %s", (datetime.datetime.now(), nickname_id))
 
     def get_channel_top(self, channel, num):
         return self.query("""
