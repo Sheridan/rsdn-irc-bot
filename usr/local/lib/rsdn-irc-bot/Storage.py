@@ -223,8 +223,7 @@ class CStorage(CConfigurable):
                           topics   as ( select topicid  as mid from messages where  topicid > 0)
                           select mid from ( select parents.mid from parents union select topics.mid from topics) res
                           where not exists (select id from messages where id=mid)
-                          """%(sfids, sfids, sfids)
-                         )
+                          """%(sfids))
 
     def count_rating(self, data):
         smile      = 0
