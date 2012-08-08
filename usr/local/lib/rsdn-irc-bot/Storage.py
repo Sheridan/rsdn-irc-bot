@@ -218,23 +218,13 @@ class CStorage(CConfigurable):
         sfids = ', '.join(map(str, fids))
         return self.query("""
                           with 
-                          parents as ( select parentid as mid from rsdn_messages where parentid > 0 and forumid in (%s) ),
-                          topics  as ( select topicid  as mid from rsdn_messages where topicid  > 0 and forumid in (%s) ),
-                          mids    as ( select id              from rsdn_messages where                  forumid in (%s) )
-                          select mid from ( select parents.mid from parents union select topics.mid from topics ) res
-                          where not exists( select id from mids where id=mid)
+                          messages as ( select id, parentid, topicid from rsdn_messages where forumid in (%s) ),
+                          parents  as ( select parentid as mid from messages where parentid > 0), 
+                          topics   as ( select topicid  as mid from messages where  topicid > 0)
+                          select mid from ( select parents.mid from parents union select topics.mid from topics) res
+                          where not exists (select id from messages where id=mid)
                           """%(sfids, sfids, sfids)
                          )
-#        return self.query("""
-#            select i from 
-#                (
-#                    select distinct t1.parentid as i from rsdn_messages t1
-#                    where not exists (select * from rsdn_messages t2 where t1.parentid=t2.id) and t1.parentid != 0 and forumid in (%s)
-#                union
-#                    select distinct t1.topicid as i from rsdn_messages t1
-#                    where not exists(select * from rsdn_messages t2 where t1.topicid=t2.id) and t1.topicid != 0 and forumid in (%s)
-#                ) t
-#        """%(sfids, sfids))
 
     def count_rating(self, data):
         smile      = 0
